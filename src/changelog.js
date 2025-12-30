@@ -3,9 +3,10 @@ export const changelog = `All notable changes to this project will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-12-30
+## [1.0.1] - 2025-12-30
 
 ### Added
+
 - Initial release of Event Check-in Tool
 - Excel file upload for participant lists
 - Manual participant addition
@@ -22,4 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resizable columns
 - Local storage persistence
 - Double-click to toggle check-in status
-- Setup and preferences on drawers`;
+- Setup and preferences on drawers
+
+### Fixed
+
+- Base path, as per custom subdomain for Github Pages`;

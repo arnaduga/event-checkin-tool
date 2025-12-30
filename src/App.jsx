@@ -27,10 +27,11 @@ import {
 import { applyMode, Mode } from '@cloudscape-design/global-styles';
 import { translations } from './translations';
 import { changelog } from './changelog';
+import packageJson from '../package.json';
 
 const STORAGE_KEY = 'event-checkin-participants';
 const SETTINGS_KEY = 'event-checkin-settings';
-const APP_VERSION = '1.0.0';
+const APP_VERSION = packageJson.version;
 
 function App() {
   const [participants, setParticipants] = useState([]);
@@ -166,6 +167,14 @@ function App() {
 
     if (files.length > 0) {
       const file = files[0];
+
+      // Extract filename without extension and set as event name if not already set
+      if (!eventName) {
+        const fileName = file.name;
+        const nameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+        setEventName(nameWithoutExt);
+      }
+
       const reader = new FileReader();
 
       reader.onload = (e) => {

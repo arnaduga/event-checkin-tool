@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
+import ReactMarkdown from 'react-markdown';
 import {
   AppLayout,
   Container,
@@ -19,12 +20,17 @@ import {
   FileUpload,
   Select,
   Toggle,
+  Link,
+  HelpPanel,
+  SplitPanel,
 } from '@cloudscape-design/components';
 import { applyMode, Mode } from '@cloudscape-design/global-styles';
 import { translations } from './translations';
+import { changelog } from './changelog';
 
 const STORAGE_KEY = 'event-checkin-participants';
 const SETTINGS_KEY = 'event-checkin-settings';
+const APP_VERSION = '1.0.0';
 
 function App() {
   const [participants, setParticipants] = useState([]);
@@ -43,6 +49,11 @@ function App() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [autoCheckIn, setAutoCheckIn] = useState(true);
   const [isInitialMount, setIsInitialMount] = useState(true);
+  const [showChangelogModal, setShowChangelogModal] = useState(false);
+  const [splitPanelOpen, setSplitPanelOpen] = useState(false);
+  const [splitPanelPreferences, setSplitPanelPreferences] = useState({
+    position: 'side'
+  });
 
   // Detect system dark mode preference
   const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -89,6 +100,9 @@ function App() {
         if (settings.statusFilter) {
           setStatusFilter(settings.statusFilter);
         }
+        if (settings.splitPanelPreferences) {
+          setSplitPanelPreferences(settings.splitPanelPreferences);
+        }
       } catch (e) {
         console.error('Failed to parse settings:', e);
       }
@@ -114,10 +128,11 @@ function App() {
         eventName,
         pageSize,
         statusFilter,
+        splitPanelPreferences,
       };
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     }
-  }, [language, darkMode, eventName, pageSize, statusFilter, isInitialMount]);
+  }, [language, darkMode, eventName, pageSize, statusFilter, splitPanelPreferences, isInitialMount]);
 
   // Apply dark mode
   useEffect(() => {
@@ -300,18 +315,19 @@ function App() {
 
   const columnDefinitions = useMemo(() => [
     {
-      id: 'status',
-      header: t.columnStatus,
+      id: 'actions',
+      header: '',
       cell: (item) => (
-        <div onDoubleClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
-          <Box title={item.checkedIn ? t.statusCheckedIn : t.statusNotCheckedIn}>
-            <StatusIndicator type={item.checkedIn ? 'success' : 'pending'} />
-          </Box>
-        </div>
+        <Box title={item.checkedIn ? t.checkOut : t.checkIn}>
+          <Toggle
+            checked={item.checkedIn}
+            onChange={() => handleCheckIn(item)}
+          />
+        </Box>
       ),
       sortingField: 'checkedIn',
-      width: 80,
-      minWidth: 60,
+      width: 50,
+      minWidth: 50,
     },
     {
       id: 'lastName',
@@ -322,8 +338,8 @@ function App() {
         </div>
       ),
       sortingField: 'lastName',
-      width: 180,
-      minWidth: 120,
+      width: 220,
+      minWidth: 150,
     },
     {
       id: 'firstName',
@@ -334,8 +350,8 @@ function App() {
         </div>
       ),
       sortingField: 'firstName',
-      width: 180,
-      minWidth: 120,
+      width: 220,
+      minWidth: 150,
     },
     {
       id: 'email',
@@ -375,20 +391,6 @@ function App() {
       width: 180,
       minWidth: 150,
     },
-    {
-      id: 'actions',
-      header: t.columnActions,
-      cell: (item) => (
-        <Box title={item.checkedIn ? t.checkOut : t.checkIn}>
-          <Toggle
-            checked={item.checkedIn}
-            onChange={() => handleCheckIn(item)}
-          />
-        </Box>
-      ),
-      width: 80,
-      minWidth: 60,
-    },
   ], [t, language]);
 
   const stats = useMemo(() => {
@@ -412,13 +414,58 @@ function App() {
   return (
     <AppLayout
       navigationHide
-      toolsOpen={toolsOpen}
-      onToolsChange={({ detail }) => setToolsOpen(detail.open)}
-      tools={
-        <Box padding={{ horizontal: 'l', vertical: 'l' }}>
+      splitPanelOpen={toolsOpen}
+      onSplitPanelToggle={({ detail }) => setToolsOpen(detail.open)}
+      toolsOpen={splitPanelOpen}
+      onToolsChange={({ detail }) => setSplitPanelOpen(detail.open)}
+      splitPanelPreferences={splitPanelPreferences}
+      onSplitPanelPreferencesChange={({ detail }) => setSplitPanelPreferences(detail)}
+      splitPanelSize={300}
+      splitPanel={
+        <SplitPanel
+          header={<Header variant="h2">{t.settingsTitle}</Header>}
+        >
           <SpaceBetween size="l">
-            <Header variant="h2">{t.settingsTitle}</Header>
+            <FormField label={t.language}>
+              <Select
+                selectedOption={language}
+                onChange={({ detail }) => setLanguage(detail.selectedOption)}
+                options={languageOptions}
+              />
+            </FormField>
 
+            <FormField label={t.darkMode}>
+              <Toggle
+                checked={darkMode}
+                onChange={({ detail }) => setDarkMode(detail.checked)}
+              >
+                {darkMode ? 'On' : 'Off'}
+              </Toggle>
+            </FormField>
+
+            <Box textAlign="center" padding={{ top: 'xl' }}>
+              <SpaceBetween direction="horizontal" size="l" alignItems="center">
+                <Link
+                  href="https://github.com/arnaduga/event-checkin-tool"
+                  external={true}
+                  externalIconAriaLabel="Opens in a new tab"
+                  variant="primary"
+                >{t.footerGithub}</Link>
+                <Link
+                  onFollow={(e) => {
+                    e.preventDefault();
+                    setShowChangelogModal(true);
+                  }}
+                  variant="primary"
+                >v{APP_VERSION}</Link>
+              </SpaceBetween>
+            </Box>
+          </SpaceBetween>
+        </SplitPanel>
+      }
+      tools={
+        <HelpPanel header={t.fileUpload}>
+          <SpaceBetween size="l">
             <FormField
               label={t.eventName}
               description={t.eventNameDescription}
@@ -429,8 +476,6 @@ function App() {
                 placeholder={t.placeholderEventName}
               />
             </FormField>
-
-            <Header variant="h2">{t.fileUpload}</Header>
 
             <FormField
               label={t.uploadTitle}
@@ -461,43 +506,29 @@ function App() {
               />
             </FormField>
 
-            <Button
-              onClick={() => {
-                setParticipants([]);
-                setFileValue([]);
-                localStorage.removeItem(STORAGE_KEY);
-              }}
-              disabled={participants.length === 0}
-            >
-              {t.clearTable}
-            </Button>
-
-            <Button
-              onClick={handleExport}
-              disabled={participants.length === 0}
-              variant="primary"
-            >
-              {t.exportTable}
-            </Button>
-
-            <FormField label={t.language}>
-              <Select
-                selectedOption={language}
-                onChange={({ detail }) => setLanguage(detail.selectedOption)}
-                options={languageOptions}
-              />
-            </FormField>
-
-            <FormField label={t.darkMode}>
-              <Toggle
-                checked={darkMode}
-                onChange={({ detail }) => setDarkMode(detail.checked)}
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                onClick={() => {
+                  setParticipants([]);
+                  setFileValue([]);
+                  setEventName('');
+                  localStorage.removeItem(STORAGE_KEY);
+                }}
+                disabled={participants.length === 0}
               >
-                {darkMode ? 'On' : 'Off'}
-              </Toggle>
-            </FormField>
+                {t.clearTable}
+              </Button>
+
+              <Button
+                onClick={handleExport}
+                disabled={participants.length === 0}
+                variant="primary"
+              >
+                {t.exportTable}
+              </Button>
+            </SpaceBetween>
           </SpaceBetween>
-        </Box>
+        </HelpPanel>
       }
       content={
         <SpaceBetween size="l">
@@ -506,16 +537,6 @@ function App() {
               <Header
                 variant="h1"
                 description={t.appDescription}
-                actions={
-                  <SpaceBetween direction="horizontal" size="xs">
-                    <Button onClick={() => setToolsOpen(!toolsOpen)}>
-                      {t.settingsTitle}
-                    </Button>
-                    <Button onClick={() => setShowAddModal(true)}>
-                      {t.addParticipant}
-                    </Button>
-                  </SpaceBetween>
-                }
               >
                 {eventName ? `${t.appTitle}: ${eventName}` : t.appTitle}
               </Header>
@@ -584,14 +605,19 @@ function App() {
                     : '(0)'
                 }
                 actions={
-                  <Select
-                    selectedOption={statusFilter}
-                    onChange={({ detail }) => {
-                      setStatusFilter(detail.selectedOption);
-                      setCurrentPageIndex(1);
-                    }}
-                    options={statusFilterOptions}
-                  />
+                  <SpaceBetween direction="horizontal" size="xs">
+                    <Select
+                      selectedOption={statusFilter}
+                      onChange={({ detail }) => {
+                        setStatusFilter(detail.selectedOption);
+                        setCurrentPageIndex(1);
+                      }}
+                      options={statusFilterOptions}
+                    />
+                    <Button onClick={() => setShowAddModal(true)}>
+                      {t.addParticipant}
+                    </Button>
+                  </SpaceBetween>
                 }
               >
                 {t.participantsTitle}
@@ -689,8 +715,20 @@ function App() {
               </SpaceBetween>
             </Form>
           </Modal>
+
+          <Modal
+            onDismiss={() => setShowChangelogModal(false)}
+            visible={showChangelogModal}
+            size="large"
+            header="Changelog"
+          >
+            <Box padding={{ vertical: 's' }}>
+              <ReactMarkdown>{changelog}</ReactMarkdown>
+            </Box>
+          </Modal>
         </SpaceBetween>
       }
+      contentType="default"
     />
   );
 }

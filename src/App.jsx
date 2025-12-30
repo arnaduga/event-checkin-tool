@@ -245,24 +245,46 @@ function App() {
 
   // Handle export to Excel
   const handleExport = () => {
-    const exportData = participants.map((p) => ({
-      [t.columnFirstName]: p.firstName,
-      [t.columnLastName]: p.lastName,
-      [t.columnEmail]: p.email,
-      [t.columnStatus]: p.checkedIn ? t.statusCheckedIn : t.statusNotCheckedIn,
-      [t.columnCheckedInAt]: p.checkedInAt
-        ? new Date(p.checkedInAt).toLocaleString(language.value.replace('_', '-'))
-        : '-',
-      [t.columnType]: p.manuallyAdded ? t.typeManual : t.typeRegistered,
-    }));
+    try {
+      const exportData = participants.map((p) => ({
+        [t.columnFirstName]: p.firstName,
+        [t.columnLastName]: p.lastName,
+        [t.columnEmail]: p.email,
+        [t.columnStatus]: p.checkedIn ? t.statusCheckedIn : t.statusNotCheckedIn,
+        [t.columnCheckedInAt]: p.checkedInAt
+          ? new Date(p.checkedInAt).toLocaleString(language.value.replace('_', '-'))
+          : '-',
+        [t.columnType]: p.manuallyAdded ? t.typeManual : t.typeRegistered,
+      }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Participants');
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Participants');
 
-    const timestamp = new Date().toISOString().split('T')[0];
-    const eventPrefix = eventName ? `${eventName.replace(/[^a-z0-9]/gi, '_')}_` : '';
-    XLSX.writeFile(workbook, `${eventPrefix}participants_${timestamp}.xlsx`);
+      // Generate file name
+      const timestamp = new Date().toISOString().split('T')[0];
+      const eventPrefix = eventName ? `${eventName.replace(/[^a-z0-9]/gi, '_')}_` : '';
+      const fileName = `${eventPrefix}participants_${timestamp}.xlsx`;
+
+      // Write to array buffer and create blob
+      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/octet-stream' });
+
+      // Create download link and trigger download
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Error exporting file. Please try again.');
+    }
   };
 
   // Filter and sort participants

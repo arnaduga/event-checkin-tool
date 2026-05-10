@@ -33,6 +33,52 @@ const STORAGE_KEY = 'event-checkin-participants';
 const SETTINGS_KEY = 'event-checkin-settings';
 const APP_VERSION = packageJson.version;
 
+const DOUBLE_TAP_DELAY = 350;
+
+function CheckInButton({ item, onToggle, t }) {
+  const lastTapRef = React.useRef(0);
+
+  const handleDoubleTap = (e) => {
+    const now = Date.now();
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      e.preventDefault();
+      onToggle(item);
+    }
+    lastTapRef.current = now;
+  };
+
+  if (!item.checkedIn) {
+    return (
+      <Button variant="primary" onClick={() => onToggle(item)}>
+        {t.checkIn}
+      </Button>
+    );
+  }
+
+  return (
+    <button
+      title={t.checkOutHint}
+      onDoubleClick={() => onToggle(item)}
+      onTouchEnd={handleDoubleTap}
+      style={{
+        cursor: 'pointer',
+        background: 'none',
+        border: '1px solid var(--color-border-button-normal-default, #7d8998)',
+        borderRadius: '8px',
+        padding: '4px 16px',
+        color: 'var(--color-text-button-normal-default, #0972d3)',
+        fontSize: 'inherit',
+        fontFamily: 'inherit',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+      }}
+    >
+      ✓ {t.statusCheckedIn}
+    </button>
+  );
+}
+
 function App() {
   const [participants, setParticipants] = useState([]);
   const [filteringText, setFilteringText] = useState('');
@@ -336,16 +382,11 @@ function App() {
       id: 'actions',
       header: '',
       cell: (item) => (
-        <Box title={item.checkedIn ? t.checkOut : t.checkIn}>
-          <Toggle
-            checked={item.checkedIn}
-            onChange={() => handleCheckIn(item)}
-          />
-        </Box>
+        <CheckInButton item={item} onToggle={handleCheckIn} t={t} />
       ),
       sortingField: 'checkedIn',
-      width: 50,
-      minWidth: 50,
+      width: 130,
+      minWidth: 130,
     },
     {
       id: 'lastName',
@@ -421,6 +462,11 @@ function App() {
   const languageOptions = [
     { value: 'en_US', label: 'English (US)' },
     { value: 'fr_FR', label: 'Français (FR)' },
+    { value: 'de_DE', label: 'Deutsch (DE)' },
+    { value: 'es_ES', label: 'Español (ES)' },
+    { value: 'it_IT', label: 'Italiano (IT)' },
+    { value: 'nl_NL', label: 'Nederlands (NL)' },
+    { value: 'tlh_TLH', label: 'tlhIngan Hol' },
   ];
 
   const statusFilterOptions = useMemo(() => [

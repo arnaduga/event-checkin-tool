@@ -3,7 +3,13 @@ export const changelog = `All notable changes to this project will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.3] - 2025-12-30
+## [1.1.0] - 2026-05-09
+
+### Changed
+
+- Check-out (uncheck) now requires a double-click / double-tap to prevent accidental unchecking on mobile
+
+## [1.0.4] - 2025-12-30
 
 ### Added
 
@@ -29,4 +35,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Base path, as per custom subdomain for Github Pages
 - Default event name from filename
-- Export XLSX issue fixed`;
+- Export XLSX issue fixed #2`;

@@ -4,8 +4,8 @@ This guide shows how to export the current participant list and check-in statuse
 
 ## Steps
 
-1. Open the setup panel by clicking the **file upload panel icon** (top-right toolbar).
-2. Click **Export to Excel**.
+1. Click **Export to Excel** in the statistics panel header.
+2. Confirm the export in the dialog that appears.
 3. A `.xlsx` file is downloaded immediately by your browser.
 
 ## Output file
@@ -31,7 +31,7 @@ The filename is generated automatically:
 
 If no event name is set, the filename starts with `participants_`.
 
-The event name can be set or changed in the setup panel under **Event Name**.
+The event name can be set by clicking the event title in the statistics panel header.
 
 ## Notes
 

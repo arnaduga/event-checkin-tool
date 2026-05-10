@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -11,18 +11,17 @@ import {
   Box,
   TextFilter,
   Pagination,
-  CollectionPreferences,
   FormField,
   Input,
   Modal,
   Form,
   StatusIndicator,
-  FileUpload,
   Select,
+  CollectionPreferences,
   Toggle,
   Link,
-  HelpPanel,
   SplitPanel,
+  MixedLineBarChart,
 } from '@cloudscape-design/components';
 import { applyMode, Mode } from '@cloudscape-design/global-styles';
 import { translations } from './translations';
@@ -56,26 +55,15 @@ function CheckInButton({ item, onToggle, t }) {
   }
 
   return (
-    <button
+    <span
       title={t.checkOutHint}
       onDoubleClick={() => onToggle(item)}
       onTouchEnd={handleDoubleTap}
-      style={{
-        cursor: 'pointer',
-        background: 'none',
-        border: '1px solid var(--color-border-button-normal-default, #7d8998)',
-        borderRadius: '8px',
-        padding: '4px 16px',
-        color: 'var(--color-text-button-normal-default, #0972d3)',
-        fontSize: 'inherit',
-        fontFamily: 'inherit',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '6px',
-      }}
     >
-      ✓ {t.statusCheckedIn}
-    </button>
+      <Button variant="normal" iconName="status-positive">
+        {t.statusCheckedIn}
+      </Button>
+    </span>
   );
 }
 
@@ -83,7 +71,7 @@ function App() {
   const [participants, setParticipants] = useState([]);
   const [filteringText, setFilteringText] = useState('');
   const [currentPageIndex, setCurrentPageIndex] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(0);
   const [sortingColumn, setSortingColumn] = useState({ sortingField: 'lastName' });
   const [isAscending, setIsAscending] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -92,12 +80,19 @@ function App() {
     lastName: '',
     email: '',
   });
-  const [fileValue, setFileValue] = useState([]);
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const fileInputRef = useRef(null);
+  const editNameInputRef = useRef(null);
+  const addFirstNameRef = useRef(null);
+  const addJustSubmittedRef = useRef(false);
+  const [addErrors, setAddErrors] = useState({ firstName: false, lastName: false });
+  const [pendingFile, setPendingFile] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ visible: false, action: null, message: '' });
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [pendingEventName, setPendingEventName] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [autoCheckIn, setAutoCheckIn] = useState(true);
   const [isInitialMount, setIsInitialMount] = useState(true);
   const [showChangelogModal, setShowChangelogModal] = useState(false);
-  const [splitPanelOpen, setSplitPanelOpen] = useState(false);
   const [splitPanelPreferences, setSplitPanelPreferences] = useState({
     position: 'side'
   });
@@ -109,6 +104,7 @@ function App() {
   const [language, setLanguage] = useState({ value: 'fr_FR', label: 'Français (FR)' });
   const [darkMode, setDarkMode] = useState(systemPrefersDark);
   const [eventName, setEventName] = useState('');
+
   const [statusFilter, setStatusFilter] = useState({ value: 'all', label: 'All' });
 
   // Get translations
@@ -150,6 +146,7 @@ function App() {
         if (settings.splitPanelPreferences) {
           setSplitPanelPreferences(settings.splitPanelPreferences);
         }
+
       } catch (e) {
         console.error('Failed to parse settings:', e);
       }
@@ -173,6 +170,7 @@ function App() {
         language,
         darkMode,
         eventName,
+
         pageSize,
         statusFilter,
         splitPanelPreferences,
@@ -198,6 +196,20 @@ function App() {
     }
   }, [language]);
 
+  useEffect(() => {
+    if (showEditNameModal) {
+      setTimeout(() => editNameInputRef.current?.focus(), 50);
+    }
+  }, [showEditNameModal]);
+
+  useEffect(() => {
+    if (showAddModal) {
+      setAddErrors({ firstName: false, lastName: false });
+      setNewParticipant({ firstName: '', lastName: '', email: '' });
+      setTimeout(() => addFirstNameRef.current?.focus(), 50);
+    }
+  }, [showAddModal]);
+
   // Normalize name: capitalize first letter, lowercase rest
   const normalizeName = (name) => {
     if (!name) return '';
@@ -206,49 +218,80 @@ function App() {
     return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
   };
 
-  // Handle Excel file upload
-  const handleFileUpload = (detail) => {
-    const files = detail.value;
-    setFileValue(files);
-
-    if (files.length > 0) {
-      const file = files[0];
-
-      // Extract filename without extension and set as event name if not already set
-      if (!eventName) {
-        const fileName = file.name;
-        const nameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
-        setEventName(nameWithoutExt);
+  const loadFile = (file) => {
+    if (!eventName) {
+      const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+      setEventName(nameWithoutExt);
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+        const transformedData = jsonData.map((row, index) => ({
+          id: `participant-${index}-${Date.now()}`,
+          firstName: normalizeName(row['Prénom'] || row['First Name'] || row['Prenom'] || row['prénom'] || ''),
+          lastName: normalizeName(row['Nom'] || row['Last Name'] || row['nom'] || ''),
+          email: row['Email'] || row['email'] || '',
+          checkedIn: false,
+          checkedInAt: null,
+          manuallyAdded: false,
+        }));
+        setParticipants(transformedData);
+        setCurrentPageIndex(1);
+      } catch (error) {
+        console.error('Error parsing Excel file:', error);
       }
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
-      const reader = new FileReader();
+  const handleImportClick = () => {
+    fileInputRef.current.value = '';
+    fileInputRef.current.click();
+  };
 
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+  const handleResetClick = () => {
+    setConfirmModal({ visible: true, action: 'reset', message: t.confirmReset });
+  };
 
-          // Transform data and add check-in status
-          const transformedData = jsonData.map((row, index) => ({
-            id: `participant-${index}-${Date.now()}`,
-            firstName: normalizeName(row['Prénom'] || row['First Name'] || row['Prenom'] || row['prénom'] || ''),
-            lastName: normalizeName(row['Nom'] || row['Last Name'] || row['nom'] || ''),
-            email: row['Email'] || row['email'] || '',
-            checkedIn: false,
-            checkedInAt: null,
-            manuallyAdded: false,
-          }));
+  const handleExportClick = () => {
+    setConfirmModal({ visible: true, action: 'export', message: t.confirmExport });
+  };
 
-          setParticipants(transformedData);
-        } catch (error) {
-          console.error('Error parsing Excel file:', error);
-          alert('Error reading Excel file. Please check the file format.');
-        }
-      };
+  const handleConfirm_action = (action) => {
+    if (action === 'import') {
+      loadFile(pendingFile);
+      setPendingFile(null);
+    } else if (action === 'reset') {
+      setParticipants([]);
+      setCurrentPageIndex(1);
+      setPageSize(0);
+      setEventName('');
+      localStorage.removeItem(STORAGE_KEY);
+    } else if (action === 'resetCheckinOnly') {
+      setParticipants((prev) => prev.map((p) => ({ ...p, checkedIn: false, checkedInAt: null })));
+    } else if (action === 'export') {
+      handleExport();
+    }
+  };
 
-      reader.readAsArrayBuffer(file);
+  const handleConfirm = () => {
+    const action = confirmModal.action;
+    setConfirmModal({ visible: false, action: null, message: '' });
+    handleConfirm_action(action);
+  };
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (participants.length > 0) {
+      setPendingFile(file);
+      setConfirmModal({ visible: true, action: 'import', message: t.confirmImport });
+    } else {
+      loadFile(file);
     }
   };
 
@@ -269,8 +312,13 @@ function App() {
 
   // Handle manual participant addition
   const handleAddParticipant = () => {
-    if (!newParticipant.firstName || !newParticipant.lastName) {
-      alert(t.required);
+    const errors = {
+      firstName: !newParticipant.firstName.trim(),
+      lastName: !newParticipant.lastName.trim(),
+    };
+    if (errors.firstName || errors.lastName) {
+      setAddErrors(errors);
+      if (errors.firstName) setTimeout(() => addFirstNameRef.current?.focus(), 0);
       return;
     }
 
@@ -285,8 +333,10 @@ function App() {
     };
 
     setParticipants((prev) => [...prev, participant]);
-    setNewParticipant({ firstName: '', lastName: '', email: '' });
+    addJustSubmittedRef.current = true;
     setShowAddModal(false);
+    document.activeElement?.blur();
+    setTimeout(() => { addJustSubmittedRef.current = false; }, 500);
   };
 
   // Handle export to Excel
@@ -298,7 +348,7 @@ function App() {
         [t.columnEmail]: p.email,
         [t.columnStatus]: p.checkedIn ? t.statusCheckedIn : t.statusNotCheckedIn,
         [t.columnCheckedInAt]: p.checkedInAt
-          ? new Date(p.checkedInAt).toLocaleString(language.value.replace('_', '-'))
+          ? new Date(p.checkedInAt).toLocaleString(language.value === 'tlh_TLH' ? 'fr-FR' : language.value.replace('_', '-'))
           : '-',
         [t.columnType]: p.manuallyAdded ? t.typeManual : t.typeRegistered,
       }));
@@ -312,7 +362,6 @@ function App() {
       const eventPrefix = eventName ? `${eventName.replace(/[^a-z0-9]/gi, '_')}_` : '';
       const fileName = `${eventPrefix}participants_${timestamp}.xlsx`;
 
-      // Use the built-in XLSX.writeFile method
       XLSX.writeFile(workbook, fileName);
     } catch (error) {
       console.error('Error exporting to Excel:', error);
@@ -372,6 +421,7 @@ function App() {
 
   // Paginated participants
   const paginatedParticipants = useMemo(() => {
+    if (pageSize === 0) return filteredParticipants;
     const start = (currentPageIndex - 1) * pageSize;
     const end = start + pageSize;
     return filteredParticipants.slice(start, end);
@@ -385,8 +435,8 @@ function App() {
         <CheckInButton item={item} onToggle={handleCheckIn} t={t} />
       ),
       sortingField: 'checkedIn',
-      width: 130,
-      minWidth: 130,
+      width: 160,
+      minWidth: 160,
     },
     {
       id: 'lastName',
@@ -442,7 +492,7 @@ function App() {
       cell: (item) => (
         <div onDoubleClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
           {item.checkedInAt
-            ? new Date(item.checkedInAt).toLocaleString(language.value.replace('_', '-'))
+            ? new Date(item.checkedInAt).toLocaleString(language.value === 'tlh_TLH' ? 'fr-FR' : language.value.replace('_', '-'))
             : '-'}
         </div>
       ),
@@ -459,13 +509,62 @@ function App() {
     return { total, checkedIn, manual };
   }, [participants]);
 
+  const chartSeries = useMemo(() => {
+    if (participants.length === 0) return null;
+
+    const checkedInTimes = participants
+      .filter((p) => p.checkedIn && p.checkedInAt)
+      .map((p) => new Date(p.checkedInAt).getTime())
+      .sort((a, b) => a - b);
+
+    if (checkedInTimes.length === 0) return null;
+
+    const startTime = checkedInTimes[0];
+    const endTime = checkedInTimes[checkedInTimes.length - 1];
+
+    const totalAtStart = participants.filter((p) => !p.manuallyAdded).length;
+    const manualWithoutTime = participants.filter((p) => p.manuallyAdded && !p.checkedInAt).length;
+    const manualAdditions = participants
+      .filter((p) => p.manuallyAdded && p.checkedInAt)
+      .map((p) => new Date(p.checkedInAt).getTime())
+      .sort((a, b) => a - b);
+
+    let expectedRaw = [];
+    let runningTotal = totalAtStart + manualWithoutTime;
+    expectedRaw.push({ x: new Date(startTime), y: runningTotal });
+    for (const ts of manualAdditions) {
+      if (ts >= startTime) {
+        runningTotal += 1;
+        expectedRaw.push({ x: new Date(ts), y: runningTotal });
+      }
+    }
+    if (endTime > startTime) {
+      expectedRaw.push({ x: new Date(endTime), y: runningTotal });
+    }
+
+    const checkedInRaw = checkedInTimes.map((ts, i) => ({ x: new Date(ts), y: i + 1 }));
+
+    return [
+      {
+        title: t.chartExpected,
+        type: 'line',
+        data: expectedRaw,
+        color: '#0972d3',
+      },
+      {
+        title: t.chartCheckedIn,
+        type: 'line',
+        data: checkedInRaw,
+        color: '#67a353',
+      },
+    ];
+  }, [participants, t]);
+
   const languageOptions = [
     { value: 'en_US', label: 'English (US)' },
     { value: 'fr_FR', label: 'Français (FR)' },
-    { value: 'de_DE', label: 'Deutsch (DE)' },
     { value: 'es_ES', label: 'Español (ES)' },
     { value: 'it_IT', label: 'Italiano (IT)' },
-    { value: 'nl_NL', label: 'Nederlands (NL)' },
     { value: 'tlh_TLH', label: 'tlhIngan Hol' },
   ];
 
@@ -478,10 +577,9 @@ function App() {
   return (
     <AppLayout
       navigationHide
-      splitPanelOpen={toolsOpen}
-      onSplitPanelToggle={({ detail }) => setToolsOpen(detail.open)}
-      toolsOpen={splitPanelOpen}
-      onToolsChange={({ detail }) => setSplitPanelOpen(detail.open)}
+      splitPanelOpen={settingsOpen}
+      onSplitPanelToggle={({ detail }) => setSettingsOpen(detail.open)}
+      toolsHide
       splitPanelPreferences={splitPanelPreferences}
       onSplitPanelPreferencesChange={({ detail }) => setSplitPanelPreferences(detail)}
       splitPanelSize={300}
@@ -527,73 +625,6 @@ function App() {
           </SpaceBetween>
         </SplitPanel>
       }
-      tools={
-        <HelpPanel header={t.fileUpload}>
-          <SpaceBetween size="l">
-            <FormField
-              label={t.eventName}
-              description={t.eventNameDescription}
-            >
-              <Input
-                value={eventName}
-                onChange={({ detail }) => setEventName(detail.value)}
-                placeholder={t.placeholderEventName}
-              />
-            </FormField>
-
-            <FormField
-              label={t.uploadTitle}
-              description={t.uploadDescription}
-            >
-              <FileUpload
-                onChange={({ detail }) => handleFileUpload(detail)}
-                value={fileValue}
-                i18nStrings={{
-                  uploadButtonText: (e) =>
-                    e ? t.uploadButton + 's' : t.uploadButton,
-                  dropzoneText: (e) =>
-                    e
-                      ? t.dropzoneText + 's'
-                      : t.dropzoneText,
-                  removeFileAriaLabel: (e) =>
-                    `${t.removeFile} ${e + 1}`,
-                  limitShowFewer: 'Show fewer files',
-                  limitShowMore: 'Show more files',
-                  errorIconAriaLabel: 'Error',
-                }}
-                showFileLastModified
-                showFileSize
-                showFileThumbnail
-                tokenLimit={3}
-                constraintText={t.constraintText}
-                accept=".xlsx,.xls"
-              />
-            </FormField>
-
-            <SpaceBetween direction="horizontal" size="xs">
-              <Button
-                onClick={() => {
-                  setParticipants([]);
-                  setFileValue([]);
-                  setEventName('');
-                  localStorage.removeItem(STORAGE_KEY);
-                }}
-                disabled={participants.length === 0}
-              >
-                {t.clearTable}
-              </Button>
-
-              <Button
-                onClick={handleExport}
-                disabled={participants.length === 0}
-                variant="primary"
-              >
-                {t.exportTable}
-              </Button>
-            </SpaceBetween>
-          </SpaceBetween>
-        </HelpPanel>
-      }
       content={
         <SpaceBetween size="l">
           <Container
@@ -601,8 +632,36 @@ function App() {
               <Header
                 variant="h1"
                 description={t.appDescription}
+                actions={
+                  <SpaceBetween direction="horizontal" size="xs">
+                    <Button onClick={handleImportClick} iconName="upload">
+                      {t.importParticipants}
+                    </Button>
+                    <Button
+                      onClick={handleResetClick}
+                      disabled={participants.length === 0}
+                      iconName="remove"
+                    >
+                      {t.clearTable}
+                    </Button>
+                    <Button
+                      onClick={handleExportClick}
+                      disabled={participants.length === 0}
+                      variant="primary"
+                      iconName="download"
+                    >
+                      {t.exportTable}
+                    </Button>
+                  </SpaceBetween>
+                }
               >
-                {eventName ? `${t.appTitle}: ${eventName}` : t.appTitle}
+                <span
+                  onClick={() => { setPendingEventName(eventName); setShowEditNameModal(true); }}
+                  title={t.editEventName}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {eventName ? `${t.appTitle}: ${eventName}` : t.appTitle}
+                </span>
               </Header>
             }
           >
@@ -678,7 +737,7 @@ function App() {
                       }}
                       options={statusFilterOptions}
                     />
-                    <Button onClick={() => setShowAddModal(true)}>
+                    <Button onClick={() => { if (!addJustSubmittedRef.current) setShowAddModal(true); }}>
                       {t.addParticipant}
                     </Button>
                   </SpaceBetween>
@@ -688,38 +747,66 @@ function App() {
               </Header>
             }
             pagination={
-              <Pagination
-                currentPageIndex={currentPageIndex}
-                pagesCount={Math.ceil(filteredParticipants.length / pageSize)}
-                onChange={({ detail }) =>
-                  setCurrentPageIndex(detail.currentPageIndex)
-                }
-              />
+              pageSize > 0 ? (
+                <Pagination
+                  currentPageIndex={currentPageIndex}
+                  pagesCount={Math.ceil(filteredParticipants.length / pageSize)}
+                  onChange={({ detail }) =>
+                    setCurrentPageIndex(detail.currentPageIndex)
+                  }
+                />
+              ) : undefined
             }
             preferences={
               <CollectionPreferences
-                title={t.preferencesTitle}
+                title={t.pageSize}
                 confirmLabel={t.confirm}
                 cancelLabel={t.cancel}
-                preferences={{
-                  pageSize: pageSize,
+                preferences={{ pageSize }}
+                onConfirm={({ detail }) => {
+                  setPageSize(detail.pageSize);
+                  setCurrentPageIndex(1);
                 }}
                 pageSizePreference={{
                   title: t.pageSize,
                   options: [
+                    { value: 0, label: t.pageSizeAll },
                     { value: 10, label: `10 ${t.participants}` },
                     { value: 20, label: `20 ${t.participants}` },
                     { value: 50, label: `50 ${t.participants}` },
                     { value: 100, label: `100 ${t.participants}` },
                   ],
                 }}
-                onConfirm={({ detail }) => {
-                  setPageSize(detail.pageSize);
-                  setCurrentPageIndex(1);
-                }}
               />
             }
           />
+
+          {chartSeries && (
+            <Container
+              header={<Header variant="h2">{t.chartTitle}</Header>}
+            >
+              <MixedLineBarChart
+                series={chartSeries}
+                xScaleType="time"
+                yScaleType="linear"
+                height={300}
+                xTitle={t.chartXTitle}
+                yTitle={t.chartYTitle}
+                i18nStrings={{
+                  xTickFormatter: (d) => {
+                    if (!(d instanceof Date)) return d;
+                    const locale = language.value === 'tlh_TLH' ? 'fr-FR' : language.value.replace('_', '-');
+                    return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+                  },
+                  yTickFormatter: (v) => String(v),
+                  detailPopoverDismissAriaLabel: 'Close',
+                  legendAriaLabel: 'Legend',
+                  chartAriaRoleDescription: 'line chart',
+                }}
+                hideFilter
+              />
+            </Container>
+          )}
 
           <Modal
             onDismiss={() => setShowAddModal(false)}
@@ -739,23 +826,44 @@ function App() {
             }
           >
             <Form>
+              <div
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.stopPropagation();
+                    handleAddParticipant();
+                  }
+                }}
+              >
               <SpaceBetween size="m">
-                <FormField label={t.firstName} constraintText={t.required}>
+                <FormField
+                  label={t.firstName}
+                  constraintText={t.required}
+                  errorText={addErrors.firstName ? t.errorRequired : undefined}
+                >
                   <Input
+                    ref={addFirstNameRef}
                     value={newParticipant.firstName}
-                    onChange={({ detail }) =>
-                      setNewParticipant({ ...newParticipant, firstName: detail.value })
-                    }
+                    onChange={({ detail }) => {
+                      setNewParticipant({ ...newParticipant, firstName: detail.value });
+                      if (detail.value.trim()) setAddErrors((e) => ({ ...e, firstName: false }));
+                    }}
                     placeholder={t.placeholderFirstName}
+                    invalid={addErrors.firstName}
                   />
                 </FormField>
-                <FormField label={t.lastName} constraintText={t.required}>
+                <FormField
+                  label={t.lastName}
+                  constraintText={t.required}
+                  errorText={addErrors.lastName ? t.errorRequired : undefined}
+                >
                   <Input
                     value={newParticipant.lastName}
-                    onChange={({ detail }) =>
-                      setNewParticipant({ ...newParticipant, lastName: detail.value })
-                    }
+                    onChange={({ detail }) => {
+                      setNewParticipant({ ...newParticipant, lastName: detail.value });
+                      if (detail.value.trim()) setAddErrors((e) => ({ ...e, lastName: false }));
+                    }}
                     placeholder={t.placeholderLastName}
+                    invalid={addErrors.lastName}
                   />
                 </FormField>
                 <FormField label={t.email}>
@@ -769,14 +877,14 @@ function App() {
                   />
                 </FormField>
                 <FormField label={t.autoCheckIn}>
-                  <Toggle
-                    checked={autoCheckIn}
-                    onChange={({ detail }) => setAutoCheckIn(detail.checked)}
-                  >
-                    {autoCheckIn ? t.checkInImmediately : t.dontCheckIn}
-                  </Toggle>
+                  <CheckInButton
+                    item={{ checkedIn: autoCheckIn }}
+                    onToggle={() => setAutoCheckIn((v) => !v)}
+                    t={t}
+                  />
                 </FormField>
               </SpaceBetween>
+              </div>
             </Form>
           </Modal>
 
@@ -787,9 +895,126 @@ function App() {
             header="Changelog"
           >
             <Box padding={{ vertical: 's' }}>
-              <ReactMarkdown>{changelog}</ReactMarkdown>
+              <ReactMarkdown components={{
+                h3: ({ children }) => {
+                  const text = String(children).toLowerCase();
+                  const [bg, fg] =
+                    text.includes('added')      ? ['#d4edda', '#1a5c2a'] :
+                    text.includes('changed')    ? ['#d0e8ff', '#0a4a8a'] :
+                    text.includes('fixed')      ? ['#fde8d0', '#7a3010'] :
+                    text.includes('removed')    ? ['#fdd', '#8b0000'] :
+                    text.includes('deprecated') ? ['#fff3cd', '#6b4c00'] :
+                    ['#e8e8e8', '#333'];
+                  return (
+                    <div style={{ marginTop: '12px', marginBottom: '4px' }}>
+                      <span style={{
+                        backgroundColor: bg,
+                        color: fg,
+                        borderRadius: '12px',
+                        padding: '2px 10px',
+                        fontSize: '0.8em',
+                        fontWeight: 'bold',
+                        letterSpacing: '0.03em',
+                        textTransform: 'uppercase',
+                      }}>{children}</span>
+                    </div>
+                  );
+                }
+              }}>{changelog}</ReactMarkdown>
             </Box>
           </Modal>
+
+          <Modal
+            onDismiss={() => setConfirmModal({ visible: false, action: null, message: '' })}
+            visible={confirmModal.visible}
+            header={t.confirm}
+            footer={
+              <Box float="right">
+                <SpaceBetween direction="horizontal" size="xs">
+                  <Button
+                    variant="link"
+                    onClick={() => setConfirmModal({ visible: false, action: null, message: '' })}
+                  >
+                    {t.cancel}
+                  </Button>
+                  {confirmModal.action === 'reset' ? (
+                    <>
+                      <Button
+                        onClick={() => {
+                          setConfirmModal({ visible: false, action: null, message: '' });
+                          handleConfirm_action('resetCheckinOnly');
+                        }}
+                      >
+                        {t.resetCheckinOnly}
+                      </Button>
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          setConfirmModal({ visible: false, action: null, message: '' });
+                          handleConfirm_action('reset');
+                        }}
+                      >
+                        {t.resetFull}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button variant="primary" onClick={handleConfirm}>
+                      {t.confirm}
+                    </Button>
+                  )}
+                </SpaceBetween>
+              </Box>
+            }
+          >
+            {confirmModal.message}
+          </Modal>
+
+          <Modal
+            onDismiss={() => setShowEditNameModal(false)}
+            visible={showEditNameModal}
+            header={t.eventName}
+            footer={
+              <Box float="right">
+                <SpaceBetween direction="horizontal" size="xs">
+                  <Button variant="link" onClick={() => setShowEditNameModal(false)}>
+                    {t.cancel}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      setEventName(pendingEventName);
+                      setShowEditNameModal(false);
+                    }}
+                  >
+                    {t.confirm}
+                  </Button>
+                </SpaceBetween>
+              </Box>
+            }
+          >
+            <FormField label={t.eventName} description={t.eventNameDescription}>
+              <Input
+                ref={editNameInputRef}
+                value={pendingEventName}
+                onChange={({ detail }) => setPendingEventName(detail.value)}
+                placeholder={t.placeholderEventName}
+                onKeyDown={({ detail }) => {
+                  if (detail.key === 'Enter') {
+                    setEventName(pendingEventName);
+                    setShowEditNameModal(false);
+                  }
+                }}
+              />
+            </FormField>
+          </Modal>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            style={{ display: 'none' }}
+            onChange={handleFileInputChange}
+          />
         </SpaceBetween>
       }
       contentType="default"

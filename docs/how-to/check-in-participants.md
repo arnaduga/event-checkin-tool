@@ -6,7 +6,7 @@ This guide covers how to record arrivals and correct check-in status during an e
 
 1. Find the participant using the search bar (search by first name, last name, or email).
 2. Click the **Check In** button in the Actions column next to their name.
-3. The button changes to a **✓ Checked In** indicator and the check-in time is recorded.
+3. The button changes to a **Done** indicator (with a checkmark icon) and the check-in time is recorded.
 
 > **Tip:** You can also double-click on any cell in the participant's row (name, email, type, or time columns) to toggle their check-in status — useful for rapid check-in with a keyboard.
 
@@ -14,8 +14,8 @@ This guide covers how to record arrivals and correct check-in status during an e
 
 To prevent accidental check-outs on touch devices, unchecking a participant requires a deliberate action:
 
-- **Desktop (mouse):** Double-click the **✓ Checked In** button.
-- **Mobile / touch screen:** Double-tap the **✓ Checked In** button within 350 ms.
+- **Desktop (mouse):** Double-click the **Done** button.
+- **Mobile / touch screen:** Double-tap the **Done** button within 350 ms.
 
 A single tap or click on the checked-in button does nothing.
 
@@ -27,8 +27,8 @@ If someone arrives who is not in the imported list:
 
 1. Click **Add Participant** (top-right of the table).
 2. Fill in **First Name** (required), **Last Name** (required), and **Email** (optional).
-3. Use the **Check-in Automatically** toggle to decide whether the participant is immediately marked as checked in.
-4. Click **Add**.
+3. Use the **Check-in Automatically** button to decide whether the participant is immediately marked as checked in.
+4. Press **Enter** or click **Add**.
 
 The participant is added with type *Manual* and appears in the table.
 

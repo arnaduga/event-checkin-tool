@@ -10,14 +10,15 @@ This guide shows how to load participants from an Excel file before or during an
 ## Steps
 
 1. Open the application in your browser.
-2. Click the **file upload panel icon** (top-right toolbar) to open the setup panel.
-3. Under **File Upload**, click **Choose file** or drag and drop your `.xlsx` file onto the upload area.
-4. The participant list loads immediately. The table shows all participants with their check-in status set to *Not Checked In*.
-5. If the **Event Name** field is empty, it is automatically filled with the filename (without extension). You can change it at any time.
+2. Click **Import** in the statistics panel header.
+3. Select your `.xlsx` file in the file picker.
+4. If the participant list is already non-empty, a confirmation dialog appears — confirm to replace the existing list.
+5. The participant list loads immediately. The table shows all participants with their check-in status set to *Not Checked In*.
+6. If the **Event Name** is empty, it is automatically filled with the filename (without extension). You can click the event title at any time to edit it.
 
 ## What happens to existing data
 
-Uploading a new file **replaces** the current participant list entirely. Any manually added participants or check-in statuses recorded in the current session are discarded.
+Importing a new file **replaces** the current participant list entirely. Any manually added participants or check-in statuses recorded in the current session are discarded.
 
 If you need to preserve existing check-ins, [export the data first](export-results.md).
 

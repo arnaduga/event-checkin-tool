@@ -3,7 +3,7 @@
 ## Change the interface language
 
 1. Open the **Settings** panel by clicking the settings icon (bottom-right of the split panel, or the gear icon in the toolbar).
-2. Under **Language**, select one of the six available languages: English (US), Français (FR), Deutsch (DE), Español (ES), Italiano (IT), or Nederlands (NL).
+2. Under **Language**, select one of the six available languages: English (US), Français (FR), Deutsch (DE), Español (ES), Italiano (IT), or tlhIngan Hol (Klingon).
 
 The interface updates immediately. All labels, filter options, and status values change to the selected language. Exported Excel files also use the selected language for column headers.
 
@@ -16,8 +16,8 @@ The application detects your system preference on first load and applies it auto
 
 ## Change the number of participants per page
 
-1. Click the **preferences icon** (gear icon at the top-right of the participants table).
-2. Under **Page size**, choose 10, 20, 50, or 100 participants per page.
+1. Click the **preferences icon** (⚙ gear icon at the top-right of the participants table).
+2. Under **Page size**, choose All, 10, 20, 50, or 100 participants per page. **All** is the default and disables pagination.
 3. Click **Confirm**.
 
 ## Settings persistence

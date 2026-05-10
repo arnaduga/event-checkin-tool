@@ -6,28 +6,34 @@ The application uses the Cloudscape `AppLayout` component with the following reg
 
 ### Content area (center)
 
-Contains two stacked sections:
+Contains three stacked sections:
 
-1. **Statistics panel** — shows four counters: Total, Checked In, Pending (total minus checked in), Manual Additions. Displayed at the top as key-value pairs.
+1. **Statistics panel** — shows four counters: Total, Checked In, Pending (total minus checked in), Manual Additions. Action buttons (Import, Reset, Export) are in the panel header. Clicking the event title opens an inline edit popup.
 2. **Participants table** — the main working area (see below).
-
-### Setup panel (left split panel)
-
-Opened via the toolbar icon on the left side. Contains:
-
-- **Event Name** — free-text field used in the export filename and displayed in the page header.
-- **File Upload** — drag-and-drop or click-to-browse upload for `.xlsx` files.
-- **Reset** — clears all participants and the loaded file. Disabled when the list is empty.
-- **Export to Excel** — downloads the current list. Disabled when the list is empty.
+3. **Check-in progress chart** — visible once at least one participant has been checked in. Shows two curves over time: expected (flat, total participant count) and checked-in (rising).
 
 ### Settings panel (right tools panel)
 
-Opened via the toolbar icon on the right side. Contains:
+Opened via the gear icon in the toolbar. Contains:
 
-- **Language** selector — English (US) or Français (FR).
+- **Language** selector — six available languages: English (US), Français (FR), Deutsch (DE), Español (ES), Italiano (IT), tlhIngan Hol (Klingon).
 - **Dark Mode** toggle — switches between light and dark Cloudscape themes.
 - **GitHub** link — opens the repository in a new tab.
 - **Version** link — opens the in-app changelog modal.
+
+## Statistics panel header actions
+
+Three buttons are always visible in the statistics panel header:
+
+| Button | Behaviour |
+|---|---|
+| **Import** | Opens the file picker immediately. If the table is non-empty, a confirmation dialog appears after file selection. |
+| **Reset** | Opens a dialog with two choices: *Check-ins only* (clears check-in status but keeps participants) or *Full reset* (clears everything). |
+| **Export to Excel** | Asks for confirmation, then downloads a `.xlsx` file. |
+
+## Event name
+
+The event name is displayed as the statistics panel title. Clicking it opens a popup to edit it. The name is used in the export filename.
 
 ## Participants table
 
@@ -37,15 +43,15 @@ Opened via the toolbar icon on the right side. Contains:
 | **Status filter** | Dropdown to show All / Checked In Only / Not Checked In Only |
 | **Add Participant** button | Opens the manual addition modal |
 | **Column headers** | Click to sort ascending/descending; drag edge to resize |
-| **Preferences icon** | Opens page-size preference dialog |
-| **Pagination** | Navigates between pages |
+| **Preferences icon** (⚙) | Opens the Cloudscape CollectionPreferences dialog to set page size |
+| **Pagination** | Navigates between pages; hidden when page size is set to All |
 
 ### Actions column
 
 The first column of the table contains the check-in button:
 
 - **Check In** (primary button): shown when the participant is not checked in. Single click checks them in.
-- **✓ Checked In** (outlined button): shown when the participant is checked in. Requires a double-click (desktop) or double-tap (touch) to check out.
+- **Done** (normal button, with checkmark icon): shown when the participant is checked in. Requires a double-click (desktop) or double-tap (touch) to check out.
 
 ### Row interaction
 
@@ -57,11 +63,11 @@ Accessible by clicking the version number in the Settings panel. Displays the fu
 
 ## Add Participant modal
 
-Fields:
+Opens focused on the first field. Required fields display an inline error if left empty. Press **Enter** or click **Add** to submit.
 
 | Field | Required | Notes |
 |---|---|---|
 | First Name | Yes | Normalized on save |
 | Last Name | Yes | Normalized on save |
 | Email | No | No format validation |
-| Check-in Automatically | — | Toggle; defaults to on |
+| Check-in Automatically | — | Check In button; defaults to checked in |

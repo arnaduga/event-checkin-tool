@@ -10,11 +10,11 @@ This is intentional: the tool is used at events where network connectivity may b
 
 All application logic lives in `src/App.jsx`. This is a deliberate choice for a tool of this scope: the component tree is shallow (one main `App` component plus a small `CheckInButton` sub-component), and splitting into multiple files would add navigation overhead without meaningful benefit.
 
-The only extracted module is `src/translations.js`, which holds all UI strings for both supported languages (English and French).
+The only extracted module is `src/translations.js`, which holds all UI strings for all supported languages (English, French, Italian, Spanish, and Klingon).
 
 ## Cloudscape Design System
 
-The application uses [Cloudscape](https://cloudscape.design/), AWS's open-source design system. It provides accessible, production-quality components (tables, modals, form controls, layout shell) without custom CSS. The tradeoff is a large dependency bundle and occasional limitations — Cloudscape components intercept DOM events internally, which required using a native `<button>` element for the check-out interaction rather than a Cloudscape `Button`.
+The application uses [Cloudscape](https://cloudscape.design/), AWS's open-source design system. It provides accessible, production-quality components (tables, modals, form controls, layout shell, charts) without custom CSS. The tradeoff is a large dependency bundle and occasional limitations — Cloudscape components intercept DOM events internally, which required wrapping the check-out button in a native `<span>` to capture double-click events rather than using Cloudscape `Button` directly.
 
 ## Versioning and changelog automation
 
@@ -25,18 +25,28 @@ This means the version in `package.json` and the in-app changelog are always der
 ## Data flow
 
 ```
-Excel file upload
+Import button click
        │
        ▼
-  FileReader API  ──►  xlsx.read()  ──►  participants state
-                                              │
-                              ┌───────────────┼───────────────┐
-                              ▼               ▼               ▼
-                         useMemo()       localStorage     Export XLSX
-                     (filter/sort/page)   (auto-save)
-                              │
-                              ▼
-                         Cloudscape Table
+  file picker  ──► (confirmation if list non-empty) ──► FileReader API
+                                                               │
+                                                               ▼
+                                                         xlsx.read()
+                                                               │
+                                                               ▼
+                                                      participants state
+                                                               │
+                                          ┌────────────────────┼────────────────────┐
+                                          ▼                    ▼                    ▼
+                                     useMemo()            localStorage          Export XLSX
+                                 (filter/sort/page)        (auto-save)
+                                          │
+                                          ▼
+                                   Cloudscape Table
+                                          │
+                                          ▼
+                                   MixedLineBarChart
+                               (check-in progress over time)
 ```
 
 All participant mutations (check-in, check-out, manual addition, reset) go through `setParticipants`, which triggers a `useEffect` that persists the new state to `localStorage`. There is no separate save action.

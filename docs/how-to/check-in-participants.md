@@ -8,18 +8,15 @@ This guide covers how to record arrivals and correct check-in status during an e
 2. Click the **Check In** button in the Actions column next to their name.
 3. The button changes to a **Done** indicator (with a checkmark icon) and the check-in time is recorded.
 
-> **Tip:** You can also double-click on any cell in the participant's row (name, email, type, or time columns) to toggle their check-in status — useful for rapid check-in with a keyboard.
+> **Tip:** You can also click on any cell in the participant's row (name, email, type, or time columns) to toggle their check-in status — useful for rapid check-in with a keyboard.
 
 ## Check out a participant (undo a check-in)
 
-To prevent accidental check-outs on touch devices, unchecking a participant requires a deliberate action:
+1. Click the **Done** button (or any cell in the participant's row).
+2. A confirmation dialog appears: "Mark this participant as not checked in?"
+3. Click **Confirm** to undo the check-in, or **Cancel** to keep it.
 
-- **Desktop (mouse):** Double-click the **Done** button.
-- **Mobile / touch screen:** Double-tap the **Done** button within 350 ms.
-
-A single tap or click on the checked-in button does nothing.
-
-For the reasoning behind this design, see [Why check-out requires a double interaction](../explanation/check-out-interaction.md).
+For the reasoning behind this design, see [Why check-out requires a confirmation dialog](../explanation/check-out-interaction.md).
 
 ## Add a participant who is not on the list
 

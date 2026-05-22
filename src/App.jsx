@@ -32,20 +32,7 @@ const STORAGE_KEY = 'event-checkin-participants';
 const SETTINGS_KEY = 'event-checkin-settings';
 const APP_VERSION = packageJson.version;
 
-const DOUBLE_TAP_DELAY = 350;
-
 function CheckInButton({ item, onToggle, t }) {
-  const lastTapRef = React.useRef(0);
-
-  const handleDoubleTap = (e) => {
-    const now = Date.now();
-    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-      e.preventDefault();
-      onToggle(item);
-    }
-    lastTapRef.current = now;
-  };
-
   if (!item.checkedIn) {
     return (
       <Button variant="primary" onClick={() => onToggle(item)}>
@@ -55,15 +42,9 @@ function CheckInButton({ item, onToggle, t }) {
   }
 
   return (
-    <span
-      title={t.checkOutHint}
-      onDoubleClick={() => onToggle(item)}
-      onTouchEnd={handleDoubleTap}
-    >
-      <Button variant="normal" iconName="status-positive">
-        {t.statusCheckedIn}
-      </Button>
-    </span>
+    <Button variant="normal" iconName="status-positive" onClick={() => onToggle(item)}>
+      {t.statusCheckedIn}
+    </Button>
   );
 }
 
@@ -86,6 +67,7 @@ function App() {
   const addJustSubmittedRef = useRef(false);
   const [addErrors, setAddErrors] = useState({ firstName: false, lastName: false });
   const [pendingFile, setPendingFile] = useState(null);
+  const [pendingCheckOut, setPendingCheckOut] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ visible: false, action: null, message: '' });
   const [showEditNameModal, setShowEditNameModal] = useState(false);
   const [pendingEventName, setPendingEventName] = useState('');
@@ -275,6 +257,17 @@ function App() {
       setParticipants((prev) => prev.map((p) => ({ ...p, checkedIn: false, checkedInAt: null })));
     } else if (action === 'export') {
       handleExport();
+    } else if (action === 'uncheck') {
+      if (pendingCheckOut) {
+        setParticipants((prev) =>
+          prev.map((p) =>
+            p.id === pendingCheckOut.id
+              ? { ...p, checkedIn: false, checkedInAt: null }
+              : p
+          )
+        );
+        setPendingCheckOut(null);
+      }
     }
   };
 
@@ -297,17 +290,18 @@ function App() {
 
   // Handle check-in toggle
   const handleCheckIn = (participant) => {
-    setParticipants((prev) =>
-      prev.map((p) =>
-        p.id === participant.id
-          ? {
-              ...p,
-              checkedIn: !p.checkedIn,
-              checkedInAt: !p.checkedIn ? new Date().toISOString() : null,
-            }
-          : p
-      )
-    );
+    if (participant.checkedIn) {
+      setPendingCheckOut(participant);
+      setConfirmModal({ visible: true, action: 'uncheck', message: t.confirmCheckOut });
+    } else {
+      setParticipants((prev) =>
+        prev.map((p) =>
+          p.id === participant.id
+            ? { ...p, checkedIn: true, checkedInAt: new Date().toISOString() }
+            : p
+        )
+      );
+    }
   };
 
   // Handle manual participant addition
@@ -442,7 +436,7 @@ function App() {
       id: 'lastName',
       header: t.columnLastName,
       cell: (item) => (
-        <div onDoubleClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
+        <div onClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
           {item.lastName}
         </div>
       ),
@@ -454,7 +448,7 @@ function App() {
       id: 'firstName',
       header: t.columnFirstName,
       cell: (item) => (
-        <div onDoubleClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
+        <div onClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
           {item.firstName}
         </div>
       ),
@@ -466,7 +460,7 @@ function App() {
       id: 'email',
       header: t.columnEmail,
       cell: (item) => (
-        <div onDoubleClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
+        <div onClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
           {item.email}
         </div>
       ),
@@ -478,7 +472,7 @@ function App() {
       id: 'type',
       header: t.columnType,
       cell: (item) => (
-        <div onDoubleClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
+        <div onClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
           {item.manuallyAdded ? t.typeManual : t.typeRegistered}
         </div>
       ),
@@ -490,7 +484,7 @@ function App() {
       id: 'checkedInAt',
       header: t.columnCheckedInAt,
       cell: (item) => (
-        <div onDoubleClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
+        <div onClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
           {item.checkedInAt
             ? new Date(item.checkedInAt).toLocaleString(language.value === 'tlh_TLH' ? 'fr-FR' : language.value.replace('_', '-'))
             : '-'}

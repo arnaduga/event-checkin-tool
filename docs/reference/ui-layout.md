@@ -51,11 +51,11 @@ The event name is displayed as the statistics panel title. Clicking it opens a p
 The first column of the table contains the check-in button:
 
 - **Check In** (primary button): shown when the participant is not checked in. Single click checks them in.
-- **Done** (normal button, with checkmark icon): shown when the participant is checked in. Requires a double-click (desktop) or double-tap (touch) to check out.
+- **Done** (normal button, with checkmark icon): shown when the participant is checked in. Single click opens a confirmation dialog to check them out.
 
 ### Row interaction
 
-Double-clicking on any cell in the Last Name, First Name, Email, Type, or Check-in Time columns also toggles the check-in status, equivalent to using the Actions column button.
+Clicking on any cell in the Last Name, First Name, Email, Type, or Check-in Time columns also toggles the check-in status, equivalent to using the Actions column button (a confirmation dialog appears when checking out).
 
 ## Changelog modal
 

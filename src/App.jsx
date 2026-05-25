@@ -619,72 +619,75 @@ function App() {
           </SpaceBetween>
         </SplitPanel>
       }
+      contentHeader={
+        <Container
+          header={
+            <Header
+              variant="h1"
+              actions={
+                <SpaceBetween direction="horizontal" size="xs">
+                  <Button onClick={handleImportClick} iconName="upload">
+                    {t.importParticipants}
+                  </Button>
+                  <Button
+                    onClick={handleResetClick}
+                    disabled={participants.length === 0}
+                    iconName="remove"
+                  >
+                    {t.clearTable}
+                  </Button>
+                  <Button
+                    onClick={handleExportClick}
+                    disabled={participants.length === 0}
+                    variant="primary"
+                    iconName="download"
+                  >
+                    {t.exportTable}
+                  </Button>
+                </SpaceBetween>
+              }
+            >
+              <span
+                onClick={() => { setPendingEventName(eventName); setShowEditNameModal(true); }}
+                title={eventName ? `${t.appTitle}: ${eventName}` : undefined}
+                style={{ cursor: 'pointer' }}
+              >
+                {(() => {
+                  const full = eventName ? `${t.appTitle}: ${eventName}` : t.appTitle;
+                  return full.length > 40 ? full.slice(0, 40) + '…' : full;
+                })()}
+              </span>
+            </Header>
+          }
+        >
+          <Box variant="awsui-key-label">
+            <SpaceBetween direction="horizontal" size="xxl">
+              <div>
+                <Box variant="awsui-key-label">{t.statsTotal}</Box>
+                <Box variant="h2">{stats.total}</Box>
+              </div>
+              <div>
+                <Box variant="awsui-key-label">{t.statsCheckedIn}</Box>
+                <Box variant="h2" color="text-status-success">
+                  {stats.checkedIn}
+                </Box>
+              </div>
+              <div>
+                <Box variant="awsui-key-label">{t.statsPending}</Box>
+                <Box variant="h2" color="text-status-inactive">
+                  {stats.total - stats.checkedIn}
+                </Box>
+              </div>
+              <div>
+                <Box variant="awsui-key-label">{t.statsManual}</Box>
+                <Box variant="h2">{stats.manual}</Box>
+              </div>
+            </SpaceBetween>
+          </Box>
+        </Container>
+      }
       content={
         <SpaceBetween size="l">
-          <Container
-            header={
-              <Header
-                variant="h1"
-                description={t.appDescription}
-                actions={
-                  <SpaceBetween direction="horizontal" size="xs">
-                    <Button onClick={handleImportClick} iconName="upload">
-                      {t.importParticipants}
-                    </Button>
-                    <Button
-                      onClick={handleResetClick}
-                      disabled={participants.length === 0}
-                      iconName="remove"
-                    >
-                      {t.clearTable}
-                    </Button>
-                    <Button
-                      onClick={handleExportClick}
-                      disabled={participants.length === 0}
-                      variant="primary"
-                      iconName="download"
-                    >
-                      {t.exportTable}
-                    </Button>
-                  </SpaceBetween>
-                }
-              >
-                <span
-                  onClick={() => { setPendingEventName(eventName); setShowEditNameModal(true); }}
-                  title={t.editEventName}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {eventName ? `${t.appTitle}: ${eventName}` : t.appTitle}
-                </span>
-              </Header>
-            }
-          >
-            <Box variant="awsui-key-label">
-              <SpaceBetween direction="horizontal" size="xxl">
-                <div>
-                  <Box variant="awsui-key-label">{t.statsTotal}</Box>
-                  <Box variant="h2">{stats.total}</Box>
-                </div>
-                <div>
-                  <Box variant="awsui-key-label">{t.statsCheckedIn}</Box>
-                  <Box variant="h2" color="text-status-success">
-                    {stats.checkedIn}
-                  </Box>
-                </div>
-                <div>
-                  <Box variant="awsui-key-label">{t.statsPending}</Box>
-                  <Box variant="h2" color="text-status-inactive">
-                    {stats.total - stats.checkedIn}
-                  </Box>
-                </div>
-                <div>
-                  <Box variant="awsui-key-label">{t.statsManual}</Box>
-                  <Box variant="h2">{stats.manual}</Box>
-                </div>
-              </SpaceBetween>
-            </Box>
-          </Container>
-
           <Table
             columnDefinitions={columnDefinitions}
             items={paginatedParticipants}
@@ -696,6 +699,7 @@ function App() {
               setIsAscending(detail.isDescending ? false : true);
             }}
             resizableColumns
+            stickyHeader
             empty={
               <Box textAlign="center" color="inherit">
                 <b>{t.noParticipants}</b>
@@ -718,7 +722,7 @@ function App() {
               <Header
                 counter={
                   participants.length > 0
-                    ? `(${filteredParticipants.length}/${participants.length})`
+                    ? `(${filteredParticipants.length}/${participants.length}) — ${t.statsCheckedIn}: ${stats.checkedIn}/${participants.length}`
                     : '(0)'
                 }
                 actions={
@@ -932,7 +936,7 @@ function App() {
                     {t.cancel}
                   </Button>
                   {confirmModal.action === 'reset' ? (
-                    <>
+                    <SpaceBetween direction="horizontal" size="xs">
                       <Button
                         onClick={() => {
                           setConfirmModal({ visible: false, action: null, message: '' });
@@ -950,7 +954,7 @@ function App() {
                       >
                         {t.resetFull}
                       </Button>
-                    </>
+                    </SpaceBetween>
                   ) : (
                     <Button variant="primary" onClick={handleConfirm}>
                       {t.confirm}
@@ -960,7 +964,9 @@ function App() {
               </Box>
             }
           >
-            {confirmModal.message}
+            {confirmModal.action === 'uncheck' && pendingCheckOut
+              ? <span>{t.confirmCheckOutPrefix}<b>{pendingCheckOut.firstName} {pendingCheckOut.lastName}</b>{t.confirmCheckOutSuffix}</span>
+              : confirmModal.message}
           </Modal>
 
           <Modal

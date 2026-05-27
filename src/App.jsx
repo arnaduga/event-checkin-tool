@@ -254,7 +254,7 @@ function App() {
       setEventName('');
       localStorage.removeItem(STORAGE_KEY);
     } else if (action === 'resetCheckinOnly') {
-      setParticipants((prev) => prev.map((p) => ({ ...p, checkedIn: false, checkedInAt: null })));
+      setParticipants((prev) => prev.map((p) => ({ ...p, checkedIn: false, checkedInAt: null, absent: false })));
     } else if (action === 'export') {
       handleExport();
     } else if (action === 'uncheck') {

@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-05-27
+
+### Added
+
+- Absent flag per participant: toggle in the edit modal marks a participant as absent, graying out their row in the table (check-in button disabled) while keeping their check-in state intact
+- Absent status included in Excel export as a dedicated column
+- "Absent only" filter option in the table filter dropdown
+
+### Changed
+
+- Edit modal: "Check-in" and "Absent" controls are now side by side in a two-column layout
+- Edit modal: check-in control replaced with a toggle (consistent with the Absent toggle)
+- Table: email column removed (info remains accessible via the "…" edit modal)
+- Table: type column (Registered / Manual) restored
+
+## [1.3.3] - 2026-05-27
+
+### Added
+
+- Offline support via PWA service worker: all assets are pre-cached on first load, so the app works fully without network (refreshing the page no longer loses the session when offline)
+
 ## [1.3.2] - 2026-05-25
 
 ### Changed

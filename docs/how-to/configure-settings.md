@@ -1,11 +1,17 @@
 # Configure Language, Dark Mode, and Preferences
 
+## Open the Settings panel
+
+Click the split panel toggle at the edge of the window. The panel can be displayed on the side (default) or at the bottom — use the panel's preferences icon to switch — and resized by dragging its edge.
+
 ## Change the interface language
 
-1. Open the **Settings** panel by clicking the settings icon (bottom-right of the split panel, or the gear icon in the toolbar).
-2. Under **Language**, select one of the six available languages: English (US), Français (FR), Deutsch (DE), Español (ES), Italiano (IT), or tlhIngan Hol (Klingon).
+1. Open the **Settings** panel.
+2. Under **Language**, select one of the five available languages: English (US), Français (FR), Español (ES), Italiano (IT), or tlhIngan Hol (Klingon).
 
-The interface updates immediately. All labels, filter options, and status values change to the selected language. Exported Excel files also use the selected language for column headers.
+The interface updates immediately. All labels, filter options, and status values change to the selected language. Exported Excel files also use the selected language for column headers and dates.
+
+The default language is Français (FR).
 
 ## Toggle dark mode
 
@@ -13,6 +19,13 @@ The interface updates immediately. All labels, filter options, and status values
 2. Toggle the **Dark Mode** switch on or off.
 
 The application detects your system preference on first load and applies it automatically.
+
+## Change the event name
+
+1. Click the title of the statistics panel (top of the page).
+2. Type the event name and press **Enter** or click **Confirm**.
+
+The event name is displayed in the header and used in the export filename. When importing a file while no event name is set, the filename (without extension) is used.
 
 ## Change the number of participants per page
 

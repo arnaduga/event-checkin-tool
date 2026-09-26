@@ -38,7 +38,9 @@ try {
 
   // Generate the JS file
   const outputPath = join(rootDir, 'src', 'changelog.js');
-  const jsContent = `export const changelog = \`${contentWithoutTitle}\`;
+  // JSON.stringify escapes backticks, backslashes, quotes and newlines,
+  // so Markdown inline code in CHANGELOG.md cannot break the generated module
+  const jsContent = `export const changelog = ${JSON.stringify(contentWithoutTitle)};
 `;
 
   writeFileSync(outputPath, jsContent, 'utf-8');

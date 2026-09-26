@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-09-26
+
+### Added
+
+- Notifications at the top of the page after an import: number of participants imported, and a warning with the number of rows ignored (no first or last name)
+
+### Fixed
+
+- Import of an unreadable file or of a file without recognized name columns no longer fails silently: an error message is shown and the current participant list is kept (the event name is no longer changed either)
+- Rows without first and last name are no longer imported as empty participants
+- Name normalization now capitalizes every part of compound names (e.g. `JEAN-PIERRE` → `Jean-Pierre`, `O'BRIEN` → `O'Brien`)
+- Export error is now shown as a translated notification instead of a browser alert
+- Untranslated texts: dark mode toggle state, table loading text, chart accessibility labels
+- Status filter label now always matches the selected language
+- Changelog generation no longer breaks when an entry contains Markdown inline code (backticks)
+
+## [1.4.2] - 2026-09-26
+
+### Fixed
+
+- Absent participants could still be checked in or out by clicking their last name or first name cell
+
+### Changed
+
+- Documentation updated to match the current application behaviour
+
 ## [1.4.1] - 2026-05-27
 
 ### Fixed

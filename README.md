@@ -5,14 +5,17 @@ A browser-based participant check-in application for events. No server required 
 ## Features
 
 - Import participant lists from Excel files (.xlsx)
-- Check in / check out participants with a single or double click
-- Add participants manually during the event
+- Check in participants with a single click; check out with a confirmation dialog
+- Add participants manually during the event, and edit existing ones
+- Mark participants as absent
 - Real-time statistics (total, checked in, pending, manual additions)
+- Check-in progress chart (expected vs. checked in over time)
 - Export results to Excel at any time
-- Search and filter by name, email, or check-in status
-- Bilingual interface (English / French)
+- Search by name or email, filter by status (checked in, not checked in, absent)
+- Reset check-ins only (to reuse a list) or everything
+- Multilingual interface (English, French, Spanish, Italian, Klingon)
 - Dark mode support
-- All data persists in browser local storage across page refreshes
+- Works offline (PWA) — all data persists in browser local storage across page refreshes
 
 ## Quick Start
 
@@ -43,6 +46,11 @@ Deployed automatically to GitHub Pages on push to `main`.
 - [Vite](https://vite.dev/) — build tool
 - [Cloudscape Design System](https://cloudscape.design/) — UI components
 - [xlsx](https://github.com/SheetJS/sheetjs) — Excel parsing and export
+- [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) — offline support
+
+## Versioning
+
+`CHANGELOG.md` is the single source of truth: the version in `package.json` and the in-app changelog (`src/changelog.js`, generated) are derived from it on every `dev` / `build` run.
 
 ## License
 

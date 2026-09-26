@@ -22,6 +22,7 @@ import {
   Link,
   SplitPanel,
   MixedLineBarChart,
+  Flashbar,
 } from '@cloudscape-design/components';
 import { applyMode, Mode } from '@cloudscape-design/global-styles';
 import { translations } from './translations';
@@ -71,6 +72,7 @@ function App() {
   const [autoCheckIn, setAutoCheckIn] = useState(true);
   const [isInitialMount, setIsInitialMount] = useState(true);
   const [showChangelogModal, setShowChangelogModal] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const [splitPanelPreferences, setSplitPanelPreferences] = useState({
     position: 'side'
   });
@@ -171,19 +173,6 @@ function App() {
     applyMode(darkMode ? Mode.Dark : Mode.Light);
   }, [darkMode]);
 
-  // Update statusFilter label when language changes
-  useEffect(() => {
-    const filterMap = {
-      'all': t.filterAll,
-      'checkedIn': t.filterCheckedIn,
-      'notCheckedIn': t.filterNotCheckedIn,
-      'absent': t.filterAbsent,
-    };
-    if (filterMap[statusFilter.value]) {
-      setStatusFilter({ value: statusFilter.value, label: filterMap[statusFilter.value] });
-    }
-  }, [language]);
-
   useEffect(() => {
     if (showEditNameModal) {
       setTimeout(() => editNameInputRef.current?.focus(), 50);
@@ -191,42 +180,82 @@ function App() {
   }, [showEditNameModal]);
 
 
-  // Normalize name: capitalize first letter, lowercase rest
+  // Normalize name: lowercase, then capitalize the first letter of each part
+  // (separated by spaces, hyphens or apostrophes), e.g. JEAN-PIERRE -> Jean-Pierre
   const normalizeName = (name) => {
     if (!name) return '';
-    const trimmed = name.trim();
-    if (trimmed.length === 0) return '';
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+    return String(name)
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase()
+      .replace(/(^|[\s\-'’])(\p{L})/gu, (_, sep, letter) => sep + letter.toUpperCase());
+  };
+
+  const notify = (type, content) => {
+    const id = `${Date.now()}-${Math.random()}`;
+    setNotifications((prev) => [
+      ...prev,
+      {
+        id,
+        type,
+        content,
+        dismissible: true,
+        dismissLabel: t.dismiss,
+        onDismiss: () => setNotifications((items) => items.filter((n) => n.id !== id)),
+      },
+    ]);
   };
 
   const loadFile = (file) => {
-    if (!eventName) {
-      const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
-      setEventName(nameWithoutExt);
-    }
+    setNotifications([]);
     const reader = new FileReader();
     reader.onload = (e) => {
+      let jsonData;
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-        const transformedData = jsonData.map((row, index) => ({
-          id: `participant-${index}-${Date.now()}`,
+        jsonData = XLSX.utils.sheet_to_json(firstSheet);
+      } catch (error) {
+        console.error('Error parsing Excel file:', error);
+        notify('error', t.importError);
+        return;
+      }
+
+      const now = Date.now();
+      const transformedData = jsonData
+        .map((row, index) => ({
+          id: `participant-${index}-${now}`,
           firstName: normalizeName(row['Prénom'] || row['First Name'] || row['Prenom'] || row['prénom'] || ''),
           lastName: normalizeName(row['Nom'] || row['Last Name'] || row['nom'] || ''),
-          email: row['Email'] || row['email'] || '',
+          email: String(row['Email'] || row['email'] || '').trim(),
           checkedIn: false,
           checkedInAt: null,
           absent: false,
           manuallyAdded: false,
-        }));
-        setParticipants(transformedData);
-        setCurrentPageIndex(1);
-      } catch (error) {
-        console.error('Error parsing Excel file:', error);
+        }))
+        .filter((p) => p.firstName || p.lastName);
+
+      // Keep the current list untouched when nothing usable was found
+      if (transformedData.length === 0) {
+        notify('error', t.importNoParticipants);
+        return;
+      }
+
+      if (!eventName) {
+        const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+        setEventName(nameWithoutExt);
+      }
+      setParticipants(transformedData);
+      setCurrentPageIndex(1);
+
+      const skipped = jsonData.length - transformedData.length;
+      notify('success', t.importSuccess.replace('{count}', transformedData.length));
+      if (skipped > 0) {
+        notify('warning', t.importSkippedRows.replace('{count}', skipped));
       }
     };
+    reader.onerror = () => notify('error', t.importError);
     reader.readAsArrayBuffer(file);
   };
 
@@ -290,6 +319,7 @@ function App() {
 
   // Handle check-in toggle
   const handleCheckIn = (participant) => {
+    if (participant.absent) return;
     if (participant.checkedIn) {
       setPendingCheckOut(participant);
       setConfirmModal({ visible: true, action: 'uncheck', message: t.confirmCheckOut });
@@ -401,7 +431,7 @@ function App() {
       XLSX.writeFile(workbook, fileName);
     } catch (error) {
       console.error('Error exporting to Excel:', error);
-      alert('Error exporting file. Please try again.');
+      notify('error', t.exportError);
     }
   };
 
@@ -486,7 +516,7 @@ function App() {
         id: 'lastName',
         header: t.columnLastName,
         cell: (item) => dim(item,
-          <div onClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
+          <div onClick={() => handleCheckIn(item)} style={{ cursor: item.absent ? 'default' : 'pointer' }}>
             {item.lastName}
           </div>
         ),
@@ -498,7 +528,7 @@ function App() {
         id: 'firstName',
         header: t.columnFirstName,
         cell: (item) => dim(item,
-          <div onClick={() => handleCheckIn(item)} style={{ cursor: 'pointer' }}>
+          <div onClick={() => handleCheckIn(item)} style={{ cursor: item.absent ? 'default' : 'pointer' }}>
             {item.firstName}
           </div>
         ),
@@ -613,9 +643,14 @@ function App() {
     { value: 'absent', label: t.filterAbsent },
   ], [t]);
 
+  // Label always follows the current language; only the value matters in state
+  const selectedStatusOption =
+    statusFilterOptions.find((o) => o.value === statusFilter.value) || statusFilterOptions[0];
+
   return (
     <AppLayout
       navigationHide
+      notifications={<Flashbar items={notifications} />}
       splitPanelOpen={settingsOpen}
       onSplitPanelToggle={({ detail }) => setSettingsOpen(detail.open)}
       toolsHide
@@ -641,7 +676,7 @@ function App() {
                 checked={darkMode}
                 onChange={({ detail }) => setDarkMode(detail.checked)}
               >
-                {darkMode ? 'On' : 'Off'}
+                {darkMode ? t.toggleOn : t.toggleOff}
               </Toggle>
             </FormField>
 
@@ -745,7 +780,7 @@ function App() {
             columnDefinitions={columnDefinitions}
             items={paginatedParticipants}
             trackBy="id"
-            loadingText="Loading participants"
+            loadingText={t.loadingParticipants}
             sortingColumn={sortingColumn}
             sortingDescending={!isAscending}
             onSortingChange={({ detail }) => {
@@ -782,7 +817,7 @@ function App() {
                 actions={
                   <SpaceBetween direction="horizontal" size="xs">
                     <Select
-                      selectedOption={statusFilter}
+                      selectedOption={selectedStatusOption}
                       onChange={({ detail }) => {
                         setStatusFilter(detail.selectedOption);
                         setCurrentPageIndex(1);
@@ -851,9 +886,9 @@ function App() {
                     return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
                   },
                   yTickFormatter: (v) => String(v),
-                  detailPopoverDismissAriaLabel: 'Close',
-                  legendAriaLabel: 'Legend',
-                  chartAriaRoleDescription: 'line chart',
+                  detailPopoverDismissAriaLabel: t.chartDismiss,
+                  legendAriaLabel: t.chartLegend,
+                  chartAriaRoleDescription: t.chartRoleDescription,
                 }}
                 hideFilter
               />

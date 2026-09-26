@@ -1,6 +1,6 @@
 {
   "name": "event-checin-app",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "",
   "type": "module",
   "scripts": {
@@ -27,7 +27,7 @@
     "react-markdown": "^10.1.0",
     "recharts": "^3.8.1",
     "vite": "^7.3.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

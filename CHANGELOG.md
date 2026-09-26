@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2026-09-26
+
+### Added
+
+- Import warns about possible duplicates (same first and last name, or same email), listing up to five names; duplicates are still imported
+
+### Changed
+
+- The confirmation dialog is now fully generic: the reset choices (check-ins only / full reset) use the same mechanism as the other confirmations
+- Cancelling a confirmation now discards the pending file or check-out
+
+### Security
+
+- SheetJS (`xlsx`) upgraded from 0.18.5 to 0.20.3, installed from the official SheetJS CDN, fixing a prototype pollution and a regular expression denial of service vulnerability
+- Development dependencies updated to fix `npm audit` findings
+
 ## [1.4.4] - 2026-09-26
 
 ### Added

@@ -115,6 +115,53 @@ describe('App', () => {
     expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)).eventName).toBe('Gala');
   });
 
+  it('warns about possible duplicates on import', async () => {
+    seed(null);
+    const { container } = render(<App />);
+
+    await user.upload(
+      fileInput(container),
+      excelFile([
+        { Prénom: 'Marie', Nom: 'Dupont', Email: 'marie@example.com' },
+        { Prénom: 'MARIE', Nom: 'DUPONT' },
+        { Prénom: 'Jean', Nom: 'Martin' },
+      ])
+    );
+
+    expect(
+      await screen.findByText('1 possible duplicates (same name or email): Marie Dupont')
+    ).toBeInTheDocument();
+    // Duplicates are reported, not removed
+    expect(stored()).toHaveLength(3);
+  });
+
+  it('resets check-ins only, keeping participants', async () => {
+    seed([participant({ checkedIn: true, checkedInAt: '2026-01-01T09:00:00.000Z', absent: true })]);
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Reset' }));
+    await user.click(
+      within(dialogWith('What do you want to reset?')).getByRole('button', {
+        name: 'Check-ins only',
+      })
+    );
+
+    expect(stored()).toHaveLength(1);
+    expect(stored()[0]).toMatchObject({ checkedIn: false, checkedInAt: null, absent: false });
+  });
+
+  it('does nothing when a confirmation is cancelled', async () => {
+    seed([participant({ checkedIn: true, checkedInAt: '2026-01-01T09:00:00.000Z' })]);
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    await user.click(
+      within(dialogWith('Mark Marie Dupont')).getByRole('button', { name: 'Cancel' })
+    );
+
+    expect(stored()[0].checkedIn).toBe(true);
+  });
+
   it('keeps the current list when the file has no recognized columns', async () => {
     seed([participant()]);
     const { container } = render(<App />);

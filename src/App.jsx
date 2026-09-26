@@ -31,6 +31,8 @@ import packageJson from '../package.json';
 import {
   toLocale,
   parseParticipantRows,
+  findDuplicates,
+  formatNames,
   normalizeName,
   createId,
   filterParticipants,
@@ -85,7 +87,8 @@ function App() {
   const addJustSubmittedRef = useRef(false);
   const [pendingFile, setPendingFile] = useState(null);
   const [pendingCheckOut, setPendingCheckOut] = useState(null);
-  const [confirmModal, setConfirmModal] = useState({ visible: false, action: null, message: '' });
+  // null | { messageKey, choices: [{ action, labelKey, primary? }] }
+  const [confirmModal, setConfirmModal] = useState(null);
   const [showEditNameModal, setShowEditNameModal] = useState(false);
   const [pendingEventName, setPendingEventName] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -198,6 +201,15 @@ function App() {
       if (skipped > 0) {
         notify('warning', t.importSkippedRows.replace('{count}', skipped));
       }
+      const duplicates = findDuplicates(imported);
+      if (duplicates.length > 0) {
+        notify(
+          'warning',
+          t.importDuplicates
+            .replace('{count}', duplicates.length)
+            .replace('{names}', formatNames(duplicates))
+        );
+      }
     };
     reader.onerror = () => notify('error', t.importError);
     reader.readAsArrayBuffer(file);
@@ -208,18 +220,34 @@ function App() {
     fileInputRef.current.click();
   };
 
+  // Open the confirmation dialog; by default it offers a single "Confirm" choice
+  const openConfirm = (messageKey, action, choices) => {
+    setConfirmModal({
+      messageKey,
+      choices: choices ?? [{ action, labelKey: 'confirm', primary: true }],
+    });
+  };
+
+  const closeConfirm = () => {
+    setConfirmModal(null);
+    setPendingFile(null);
+    setPendingCheckOut(null);
+  };
+
   const handleResetClick = () => {
-    setConfirmModal({ visible: true, action: 'reset', message: t.confirmReset });
+    openConfirm('confirmReset', null, [
+      { action: 'resetCheckinOnly', labelKey: 'resetCheckinOnly' },
+      { action: 'reset', labelKey: 'resetFull', primary: true },
+    ]);
   };
 
   const handleExportClick = () => {
-    setConfirmModal({ visible: true, action: 'export', message: t.confirmExport });
+    openConfirm('confirmExport', 'export');
   };
 
   const runConfirmedAction = (action) => {
     if (action === 'import') {
-      loadFile(pendingFile);
-      setPendingFile(null);
+      if (pendingFile) loadFile(pendingFile);
     } else if (action === 'reset') {
       setParticipants([]);
       setCurrentPageIndex(1);
@@ -238,15 +266,13 @@ function App() {
             p.id === pendingCheckOut.id ? { ...p, checkedIn: false, checkedInAt: null } : p
           )
         );
-        setPendingCheckOut(null);
       }
     }
   };
 
-  const handleConfirm = () => {
-    const action = confirmModal.action;
-    setConfirmModal({ visible: false, action: null, message: '' });
+  const handleConfirmChoice = (action) => {
     runConfirmedAction(action);
+    closeConfirm();
   };
 
   const handleFileInputChange = (e) => {
@@ -254,7 +280,7 @@ function App() {
     if (!file) return;
     if (participants.length > 0) {
       setPendingFile(file);
-      setConfirmModal({ visible: true, action: 'import', message: t.confirmImport });
+      openConfirm('confirmImport', 'import');
     } else {
       loadFile(file);
     }
@@ -265,7 +291,7 @@ function App() {
     if (participant.absent) return;
     if (participant.checkedIn) {
       setPendingCheckOut(participant);
-      setConfirmModal({ visible: true, action: 'uncheck', message: t.confirmCheckOut });
+      openConfirm('confirmCheckOut', 'uncheck');
     } else {
       setParticipants((prev) =>
         prev.map((p) =>
@@ -923,48 +949,29 @@ function App() {
           </Modal>
 
           <Modal
-            onDismiss={() => setConfirmModal({ visible: false, action: null, message: '' })}
-            visible={confirmModal.visible}
+            onDismiss={closeConfirm}
+            visible={!!confirmModal}
             header={t.confirm}
             footer={
               <Box float="right">
                 <SpaceBetween direction="horizontal" size="xs">
-                  <Button
-                    variant="link"
-                    onClick={() => setConfirmModal({ visible: false, action: null, message: '' })}
-                  >
+                  <Button variant="link" onClick={closeConfirm}>
                     {t.cancel}
                   </Button>
-                  {confirmModal.action === 'reset' ? (
-                    <SpaceBetween direction="horizontal" size="xs">
-                      <Button
-                        onClick={() => {
-                          setConfirmModal({ visible: false, action: null, message: '' });
-                          runConfirmedAction('resetCheckinOnly');
-                        }}
-                      >
-                        {t.resetCheckinOnly}
-                      </Button>
-                      <Button
-                        variant="primary"
-                        onClick={() => {
-                          setConfirmModal({ visible: false, action: null, message: '' });
-                          runConfirmedAction('reset');
-                        }}
-                      >
-                        {t.resetFull}
-                      </Button>
-                    </SpaceBetween>
-                  ) : (
-                    <Button variant="primary" onClick={handleConfirm}>
-                      {t.confirm}
+                  {confirmModal?.choices.map((choice) => (
+                    <Button
+                      key={choice.action}
+                      variant={choice.primary ? 'primary' : 'normal'}
+                      onClick={() => handleConfirmChoice(choice.action)}
+                    >
+                      {t[choice.labelKey]}
                     </Button>
-                  )}
+                  ))}
                 </SpaceBetween>
               </Box>
             }
           >
-            {confirmModal.action === 'uncheck' && pendingCheckOut ? (
+            {confirmModal?.messageKey === 'confirmCheckOut' && pendingCheckOut ? (
               <span>
                 {t.confirmCheckOutPrefix}
                 <b>
@@ -973,7 +980,7 @@ function App() {
                 {t.confirmCheckOutSuffix}
               </span>
             ) : (
-              confirmModal.message
+              confirmModal && t[confirmModal.messageKey]
             )}
           </Modal>
 

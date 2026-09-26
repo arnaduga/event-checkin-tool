@@ -29,7 +29,7 @@ Logic that does not depend on React is kept in plain modules, so it can be unit 
 
 State is initialized synchronously from `localStorage` (lazy `useState` initializers), so the first render already shows the stored participants and settings; effects only write back.
 
-Modals are managed with a small number of state objects: `participantModal` (shared by add and edit), `confirmModal` (a generic confirmation dialog whose `action` field selects the behaviour: `import`, `reset`, `export`, `uncheck`), plus dedicated states for the event name and changelog modals.
+Modals are managed with a small number of state objects: `participantModal` (shared by add and edit), `confirmModal` (a generic confirmation dialog described by a message key and a list of choices, each mapped to an action run by `runConfirmedAction`: `import`, `export`, `uncheck`, `reset`, `resetCheckinOnly`), plus dedicated states for the event name and changelog modals.
 
 ## Cloudscape Design System
 

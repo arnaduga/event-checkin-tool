@@ -60,7 +60,7 @@ Deployed automatically to GitHub Pages on push to `main`, after lint, formatting
 - [React 19](https://react.dev/) — UI framework
 - [Vite](https://vite.dev/) — build tool
 - [Cloudscape Design System](https://cloudscape.design/) — UI components
-- [xlsx](https://github.com/SheetJS/sheetjs) — Excel parsing and export
+- [SheetJS](https://sheetjs.com/) (`xlsx`) — Excel parsing and export, installed from the [SheetJS CDN](https://cdn.sheetjs.com/) because versions after 0.18.5 are not published on the npm registry
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) — offline support
 - [Vitest](https://vitest.dev/) + [Testing Library](https://testing-library.com/) — tests
 - [ESLint](https://eslint.org/) with React and React Hooks plugins — linting

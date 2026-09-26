@@ -100,6 +100,7 @@ export const translations = {
     chartDismiss: 'Close',
     chartLegend: 'Legend',
     chartRoleDescription: 'line chart',
+    importDuplicates: '{count} possible duplicates (same name or email): {names}',
   },
   fr_FR: {
     appTitle: 'Événement',
@@ -204,6 +205,7 @@ export const translations = {
     chartDismiss: 'Fermer',
     chartLegend: 'Légende',
     chartRoleDescription: 'graphique linéaire',
+    importDuplicates: '{count} doublons possibles (même nom ou même email) : {names}',
   },
   it_IT: {
     appTitle: 'Evento',
@@ -306,6 +308,7 @@ export const translations = {
     chartDismiss: 'Chiudi',
     chartLegend: 'Legenda',
     chartRoleDescription: 'grafico a linee',
+    importDuplicates: '{count} possibili duplicati (stesso nome o email): {names}',
   },
   es_ES: {
     appTitle: 'Evento',
@@ -408,6 +411,7 @@ export const translations = {
     chartDismiss: 'Cerrar',
     chartLegend: 'Leyenda',
     chartRoleDescription: 'gráfico de líneas',
+    importDuplicates: '{count} posibles duplicados (mismo nombre o email): {names}',
   },
   tlh_TLH: {
     appTitle: 'rojHom SeH',
@@ -510,5 +514,6 @@ export const translations = {
     chartDismiss: 'yISoQmoH',
     chartLegend: 'QIn',
     chartRoleDescription: 'tlhegh mIllogh',
+    importDuplicates: "{count} tlhInganpu' rap (pong rap ghap email rap): {names}",
   },
 };

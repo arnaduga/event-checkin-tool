@@ -49,6 +49,30 @@ export const parseParticipantRows = (rows, now = Date.now()) => {
   return { participants, skipped: rows.length - participants.length };
 };
 
+// Participants that look like a duplicate of an earlier one in the list: same first and
+// last name (case-insensitive), or same email address. The first occurrence is not returned.
+export const findDuplicates = (participants) => {
+  const seenNames = new Set();
+  const seenEmails = new Set();
+  const duplicates = [];
+  for (const p of participants) {
+    const nameKey = `${p.firstName.toLowerCase()}|${p.lastName.toLowerCase()}`;
+    const emailKey = p.email.toLowerCase();
+    if (seenNames.has(nameKey) || (emailKey && seenEmails.has(emailKey))) {
+      duplicates.push(p);
+    }
+    seenNames.add(nameKey);
+    if (emailKey) seenEmails.add(emailKey);
+  }
+  return duplicates;
+};
+
+// "Marie Dupont, Jean Martin…" limited to `max` names
+export const formatNames = (participants, max = 5) => {
+  const names = participants.slice(0, max).map((p) => `${p.firstName} ${p.lastName}`.trim());
+  return names.join(', ') + (participants.length > max ? '…' : '');
+};
+
 export const filterParticipants = (participants, { status = 'all', text = '' } = {}) => {
   let filtered = participants;
 

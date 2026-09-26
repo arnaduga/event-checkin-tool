@@ -6,7 +6,7 @@ The application uses the Cloudscape `AppLayout` component with a content header,
 
 ### Notifications (top)
 
-Import results and errors (participants imported, rows ignored, unreadable file, export failure) are shown as dismissible notifications at the top of the page. Notifications from a previous import are cleared when a new file is imported.
+Import results and errors (participants imported, rows ignored, possible duplicates, unreadable file, export failure) are shown as dismissible notifications at the top of the page. Notifications from a previous import are cleared when a new file is imported.
 
 ### Content header
 

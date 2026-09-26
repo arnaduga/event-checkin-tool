@@ -4,6 +4,8 @@ import {
   normalizeName,
   toLocale,
   parseParticipantRows,
+  findDuplicates,
+  formatNames,
   filterParticipants,
   sortParticipants,
   computeStats,
@@ -112,6 +114,44 @@ describe('parseParticipantRows', () => {
     const { participants, skipped } = parseParticipantRows([{ Name: 'Marie Dupont' }]);
     expect(participants).toEqual([]);
     expect(skipped).toBe(1);
+  });
+});
+
+describe('findDuplicates', () => {
+  it('flags repeated names case-insensitively, keeping the first occurrence', () => {
+    const list = [
+      participant({ id: '1', email: 'a@x.io' }),
+      participant({ id: '2', firstName: 'MARIE', lastName: 'dupont', email: 'b@x.io' }),
+      participant({ id: '3', firstName: 'Jean', email: 'c@x.io' }),
+    ];
+    expect(findDuplicates(list).map((p) => p.id)).toEqual(['2']);
+  });
+
+  it('flags repeated emails, ignoring empty ones', () => {
+    const list = [
+      participant({ id: '1', firstName: 'Marie', email: 'Same@x.io' }),
+      participant({ id: '2', firstName: 'Jean', email: 'same@x.io' }),
+      participant({ id: '3', firstName: 'Léa', email: '' }),
+      participant({ id: '4', firstName: 'Paul', email: '' }),
+    ];
+    expect(findDuplicates(list).map((p) => p.id)).toEqual(['2']);
+  });
+
+  it('returns nothing for a clean list', () => {
+    expect(
+      findDuplicates([
+        participant({ id: '1' }),
+        participant({ id: '2', firstName: 'Jean', email: '' }),
+      ])
+    ).toEqual([]);
+  });
+});
+
+describe('formatNames', () => {
+  it('joins names and truncates after the limit', () => {
+    const list = ['A', 'B', 'C'].map((firstName) => participant({ firstName, lastName: 'X' }));
+    expect(formatNames(list)).toBe('A X, B X, C X');
+    expect(formatNames(list, 2)).toBe('A X, B X…');
   });
 });
 

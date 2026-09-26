@@ -44,7 +44,7 @@ Every imported participant starts as _not checked in_, _not absent_, with type _
 
 ## Participant deduplication
 
-The application does not deduplicate rows. If the same person appears twice in the file, they will appear twice in the table.
+The application does not remove duplicate rows: if the same person appears twice in the file, they appear twice in the table. However, after the import, a warning lists the possible duplicates (up to five names), that is rows with the same first and last name (case-insensitive) or the same email address as an earlier row. Use the search bar to find them and the `…` button to fix or mark them as absent.
 
 ## Template
 

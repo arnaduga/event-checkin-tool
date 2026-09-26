@@ -58,7 +58,7 @@ Cloudscape keeps every modal in the DOM, including the changelog, whose text may
 
 ## Deployment
 
-A GitHub Actions workflow (`.github/workflows/deploy.yml`) runs lint, the formatting check and tests, builds the application and deploys `dist/` to GitHub Pages on every push to `main`. Any failure blocks the deployment.
+A GitHub Actions workflow (`.github/workflows/deploy.yml`) runs lint, the formatting check and tests, builds the application and deploys `dist/` to GitHub Pages on every push to `main`. Any failure blocks the deployment. The `github-pages` environment also accepts deployments from `v*` tags, which allows redeploying any tagged release — see [Deploy a release and roll back](../how-to/deploy-and-rollback.md).
 
 ## Data flow
 

@@ -53,7 +53,7 @@ Open `http://localhost:3000` in your browser.
 npm run build   # outputs to dist/
 ```
 
-Deployed automatically to GitHub Pages on push to `main`, after lint, formatting check and tests pass.
+Deployed automatically to GitHub Pages on push to `main`, after lint, formatting check and tests pass. See [Deploy a release and roll back](docs/how-to/deploy-and-rollback.md) for the release and rollback procedure.
 
 ## Tech Stack
 

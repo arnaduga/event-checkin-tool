@@ -14,18 +14,19 @@ A web app manifest allows installing the application on a phone or desktop and r
 
 ## Single-component model
 
-All UI code lives in `src/App.jsx`. This is a deliberate choice for a tool of this scope: the component tree is shallow (one main `App` component plus a small `CheckInButton` sub-component), and splitting into multiple files would add navigation overhead without meaningful benefit.
+Almost all UI code lives in `src/App.jsx`; the random draw dialog is a separate component because of its dedicated animation and styles. This is a deliberate choice for a tool of this scope: the component tree is shallow (one main `App` component plus a small `CheckInButton` sub-component), and splitting into multiple files would add navigation overhead without meaningful benefit.
 
 Logic that does not depend on React is kept in plain modules, so it can be unit tested without rendering the UI:
 
-| File                      | Content                                                                                                                                 |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/main.jsx`            | React entry point, loads Cloudscape global styles                                                                                       |
-| `src/App.jsx`             | The whole UI: state, handlers, layout, modals                                                                                           |
-| `src/lib/participants.js` | Pure functions: name normalization, spreadsheet row parsing, filtering, sorting, statistics, chart series, export rows and file name    |
-| `src/lib/storage.js`      | `localStorage` keys and safe read/write helpers (never throw, e.g. in private browsing)                                                 |
-| `src/translations.js`     | All UI strings for all supported languages (English, French, Italian, Spanish, and Klingon), keyed by locale code (`en_US`, `fr_FR`, …) |
-| `src/changelog.js`        | Generated file — see below                                                                                                              |
+| File                                  | Content                                                                                                                                                                                                                          |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/main.jsx`                        | React entry point, loads Cloudscape global styles                                                                                                                                                                                |
+| `src/App.jsx`                         | The whole UI: state, handlers, layout, modals                                                                                                                                                                                    |
+| `src/DrawModal.jsx` + `DrawModal.css` | Random draw dialog with the slot-machine name reel animation (the only custom CSS in the app, since Cloudscape has no equivalent)                                                                                                |
+| `src/lib/participants.js`             | Pure functions: name normalization, spreadsheet row parsing, duplicate detection, filtering, sorting, statistics, chart series, export rows and file name, random draw (eligibility, secure random pick, shuffle, reel building) |
+| `src/lib/storage.js`                  | `localStorage` keys and safe read/write helpers (never throw, e.g. in private browsing)                                                                                                                                          |
+| `src/translations.js`                 | All UI strings for all supported languages (English, French, Italian, Spanish, and Klingon), keyed by locale code (`en_US`, `fr_FR`, …)                                                                                          |
+| `src/changelog.js`                    | Generated file — see below                                                                                                                                                                                                       |
 
 State is initialized synchronously from `localStorage` (lazy `useState` initializers), so the first render already shows the stored participants and settings; effects only write back.
 
@@ -52,7 +53,7 @@ This means the version in `package.json` and the in-app changelog are always der
 - **Vitest** with **jsdom** and **Testing Library** (`src/test/setup.js` polyfills `matchMedia` and `ResizeObserver` for Cloudscape). Tests live next to the code they cover:
   - `src/lib/*.test.js` — unit tests of the pure logic and storage helpers
   - `src/translations.test.js` — every language defines the same keys as `en_US`, with no empty values
-  - `src/App.test.jsx` — integration tests rendering the whole app: check-in / check-out, absent participants, Excel import (files are generated in memory with `xlsx`), manual addition, persistence and reset
+  - `src/App.test.jsx` — integration tests rendering the whole app: check-in / check-out, absent participants, Excel import (files are generated in memory with `xlsx`), manual addition, confirmations, persistence, reset and random draw (eligibility, reel duration with fake timers)
 
 Cloudscape keeps every modal in the DOM, including the changelog, whose text may contain sample names. Integration tests therefore locate a dialog by its own content (`dialogWith(text)`) and table cells inside the table body, rather than querying the whole screen.
 

@@ -175,3 +175,53 @@ export const buildExportFileName = (eventName, date = new Date()) => {
   const eventPrefix = eventName ? `${eventName.replace(/[^a-z0-9]/gi, '_')}_` : '';
   return `${eventPrefix}participants_${timestamp}.xlsx`;
 };
+
+// Participants who can win a random draw: checked in and not absent
+export const getDrawEligible = (participants) =>
+  participants.filter((p) => p.checkedIn && !p.absent);
+
+// Uniform random number in [0, 1) from the Web Crypto API, for a fair draw
+export const secureRandom = () => {
+  const [value] = crypto.getRandomValues(new Uint32Array(1));
+  return value / 2 ** 32;
+};
+
+export const pickRandom = (items, random = secureRandom) =>
+  items.length === 0 ? null : items[Math.floor(random() * items.length)];
+
+// Fisher-Yates shuffle, returning a new array
+export const shuffle = (items, random = secureRandom) => {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+};
+
+// Empty reel row, used when there are not enough names around the winner
+const reelPlaceholder = (position) => ({
+  id: `placeholder-${position}`,
+  firstName: '',
+  lastName: '',
+  placeholder: true,
+});
+
+// Names shown on the draw reel, slot-machine style: up to `length` distinct eligible
+// participants, the winner being followed by one more name so the reel stops on it with a
+// name visible above and below. Placeholders fill the gaps when too few are eligible.
+export const buildReel = (eligible, winner, length, random = secureRandom) => {
+  const others = shuffle(
+    eligible.filter((p) => p.id !== winner.id),
+    random
+  ).slice(0, Math.max(2, length - 1));
+  const after = others.pop() ?? reelPlaceholder('after');
+  const before = others.length > 0 ? others : [reelPlaceholder('before')];
+  const items = [...before, winner, after];
+  return { items, winnerIndex: before.length };
+};
+
+// Number of reel items for an animation duration: more names for longer animations,
+// so the scrolling speed stays similar
+export const reelLength = (durationSeconds) =>
+  Math.min(80, Math.max(3, Math.round(durationSeconds * 15)));

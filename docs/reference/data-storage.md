@@ -35,6 +35,7 @@ Stores user preferences as a JSON object:
 | `pageSize`              | number  | Number of rows per table page (`0` means _All_, no pagination)                                                    |
 | `statusFilter`          | object  | Active status filter option (`{ value, label }`, where `value` is `all`, `checkedIn`, `notCheckedIn` or `absent`) |
 | `splitPanelPreferences` | object  | Settings panel layout (`{ position: 'side' \| 'bottom', size? }`)                                                 |
+| `drawDuration`          | number  | Random draw animation duration in seconds (`0` means no animation)                                                |
 
 This key is written whenever one of these settings changes.
 
@@ -50,6 +51,7 @@ When no settings are stored, the application starts with:
 - Dark mode: follows the operating system preference
 - Page size: All
 - Status filter: All
+- Draw animation duration: 4 seconds
 
 ## Resetting data
 

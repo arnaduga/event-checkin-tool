@@ -10,6 +10,7 @@ A browser-based participant check-in application for events. No server required 
 - Mark participants as absent
 - Real-time statistics (total, checked in, pending, manual additions)
 - Check-in progress chart (expected vs. checked in over time)
+- Random draw among checked-in participants, with a slot-machine name reel animation and large-type result for tablets
 - Export results to Excel at any time
 - Search by name or email, filter by status (checked in, not checked in, absent)
 - Reset check-ins only (to reuse a list) or everything

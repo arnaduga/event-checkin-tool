@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { act } from '@testing-library/react';
 import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as XLSX from 'xlsx';
@@ -224,5 +225,64 @@ describe('App', () => {
 
     expect(screen.getByText('No participants')).toBeInTheDocument();
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  describe('random draw', () => {
+    const checkedIn = { checkedIn: true, checkedInAt: '2026-01-01T09:00:00.000Z' };
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('is disabled when nobody is eligible', () => {
+      seed([
+        participant({ lastName: 'Dupont' }),
+        participant({ lastName: 'Martin', ...checkedIn, absent: true }),
+      ]);
+      render(<App />);
+      expect(screen.getByRole('button', { name: 'Random draw' })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      );
+    });
+
+    it('only draws checked-in, non-absent participants', async () => {
+      seed(
+        [
+          participant({ lastName: 'Dupont', firstName: 'Marie' }),
+          participant({ lastName: 'Martin', firstName: 'Jean', ...checkedIn, absent: true }),
+          participant({ lastName: 'Leroy', firstName: 'Anne', ...checkedIn, manuallyAdded: true }),
+        ],
+        { drawDuration: 0 }
+      );
+      render(<App />);
+
+      await user.click(screen.getByRole('button', { name: 'Random draw' }));
+
+      const result = await screen.findByTestId('draw-result');
+      expect(result).toHaveTextContent('Anne LEROY');
+      expect(screen.getByText('Drawn among 1 checked-in participants')).toBeInTheDocument();
+
+      // Draw again picks again (only one eligible participant here)
+      await user.click(screen.getByRole('button', { name: 'Draw again' }));
+      expect(await screen.findByTestId('draw-result')).toHaveTextContent('Anne');
+    });
+
+    it('scrolls the reel for the configured duration, then stops on the winner', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const fakeUser = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      seed([participant({ lastName: 'Dupont', ...checkedIn })], { drawDuration: 3 });
+      render(<App />);
+
+      await fakeUser.click(screen.getByRole('button', { name: 'Random draw' }));
+      expect(screen.getByText('Drawing…')).toBeInTheDocument();
+      expect(screen.queryByTestId('draw-result')).not.toBeInTheDocument();
+
+      act(() => vi.advanceTimersByTime(2900));
+      expect(screen.queryByTestId('draw-result')).not.toBeInTheDocument();
+
+      act(() => vi.advanceTimersByTime(200));
+      expect(screen.getByTestId('draw-result')).toHaveTextContent('Marie DUPONT');
+    });
   });
 });

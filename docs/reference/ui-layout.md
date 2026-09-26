@@ -36,6 +36,7 @@ Opened via the split panel toggle at the edge of the window. It can be displayed
 
 - **Language** selector — five available languages: English (US), Français (FR), Español (ES), Italiano (IT), tlhIngan Hol (Klingon).
 - **Dark Mode** toggle — switches between light and dark Cloudscape themes.
+- **Draw animation duration** — duration of the name reel animation in the random draw dialog (no animation, 1, 2, 3, 4, 5 or 10 seconds; default 4).
 - **GitHub** link — opens the repository in a new tab.
 - **Version** link — opens the in-app changelog modal.
 - **Last loaded** — date and time of the most recent page load.
@@ -56,6 +57,7 @@ Opened via the split panel toggle at the edge of the window. It can be displayed
 | **Search bar**             | Filters rows by first name, last name, or email (case-insensitive)                          |
 | **Status filter**          | Dropdown: All / Checked In Only / Not Checked In Only / Absent Only                         |
 | **Add Participant** button | Opens the manual addition modal                                                             |
+| **Random draw** button     | Opens the random draw dialog; disabled when no participant is checked in and not absent     |
 | **Column headers**         | Click to sort ascending/descending; drag edge to resize. Default sort: last name, ascending |
 | **Preferences icon** (⚙)   | Opens the Cloudscape CollectionPreferences dialog to set page size                          |
 | **Pagination**             | Navigates between pages; hidden when page size is set to All (default)                      |
@@ -101,6 +103,18 @@ The same modal is used to add a participant (via **Add Participant**) and to edi
 ## Event name popup
 
 Opened by clicking the statistics panel title. Press **Enter** or click **Confirm** to save. The name is used in the header and in the export filename.
+
+## Random draw dialog
+
+Opened by the **Random draw** button, in the largest dialog size (almost the full screen width), for display on a tablet. Picks a random participant among those checked in and not absent (see [Draw a random participant](../how-to/random-draw.md)).
+
+1. Names of eligible participants (each at most once) scroll on a reel (3 visible rows; names are small and faded above and below the framed centre row, large inside it) for the configured duration, with the text "Drawing…"; the reel slows down progressively.
+2. The reel stops with the winner's first name and last name (in capitals) in the framed centre row, enlarged and highlighted with a short zoom "pop" (and a pulse of the frame lines), while the names above and below fade out; the number of eligible participants is shown below. The dialog keeps the same height during the whole draw.
+
+| Button         | Behaviour                                          |
+| -------------- | -------------------------------------------------- |
+| **Draw again** | Runs a new draw (disabled while the reel scrolls)  |
+| **Close**      | Closes the dialog; a draw in progress is cancelled |
 
 ## Changelog modal
 

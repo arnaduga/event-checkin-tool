@@ -20,6 +20,13 @@ The default language is Français (FR).
 
 The application detects your system preference on first load and applies it automatically.
 
+## Change the random draw animation duration
+
+1. Open the **Settings** panel.
+2. Under **Draw animation duration**, choose _No animation_, 1, 2, 3, 4, 5 or 10 seconds (default: 4 seconds).
+
+See [Draw a random participant](random-draw.md).
+
 ## Change the event name
 
 1. Click the title of the statistics panel (top of the page).
@@ -35,6 +42,6 @@ The event name is displayed in the header and used in the export filename. When 
 
 ## Settings persistence
 
-All settings (language, dark mode, event name, page size, status filter, and panel layout) are saved to browser local storage automatically. They are restored the next time you open the application in the same browser.
+All settings (language, dark mode, event name, page size, status filter, panel layout, and draw animation duration) are saved to browser local storage automatically. They are restored the next time you open the application in the same browser.
 
 See [Data storage reference](../reference/data-storage.md) for details on what is stored and how to reset it.

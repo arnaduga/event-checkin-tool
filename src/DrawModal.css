@@ -1,0 +1,180 @@
+.draw-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 48px 0 24px;
+}
+
+/* ---------- Reel ---------- */
+
+/* Window showing 3 rows; its height never changes, so the dialog does not resize */
+.draw-reel {
+  /* Maximum name size; the row height is based on it so the dialog height never changes */
+  --row-font: clamp(1.75rem, 5vw, 4rem);
+  --row-height: calc(var(--row-font) * 1.5);
+  /* Actual size, the same for every name of the reel: the largest that lets the longest
+     name (--longest characters, set by the component) fit entirely in the centre row,
+     where names are 1.3× larger. 0.68em is a safe average width for bold characters. */
+  --centre-font: min(calc(var(--row-font) * 1.3), calc(100cqw * 0.86 / (var(--longest) * 0.68)));
+  --side-font: calc(var(--centre-font) / 1.3);
+  container-type: inline-size;
+  position: relative;
+  width: 100%;
+  height: calc(var(--row-height) * 3);
+}
+
+/* Frame around the centre row, where the reel stops */
+.draw-reel::before,
+.draw-reel::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: #0972d3;
+  z-index: 1;
+}
+
+.draw-reel::before {
+  top: var(--row-height);
+}
+
+.draw-reel::after {
+  top: calc(var(--row-height) * 2);
+}
+
+/* Both layers cover the whole window and scroll identically */
+.draw-reel__layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Side layer: small faded names, hidden in the centre row and fading out at the edges */
+.draw-reel__layer--side {
+  opacity: 0.3;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 calc(var(--row-height) * 0.8),
+    #000 var(--row-height),
+    transparent var(--row-height),
+    transparent calc(var(--row-height) * 2),
+    #000 calc(var(--row-height) * 2),
+    #000 calc(var(--row-height) * 2.2),
+    transparent 100%
+  );
+}
+
+/* Centre layer: large names, only visible inside the centre row */
+.draw-reel__layer--centre {
+  clip-path: inset(var(--row-height) 0 var(--row-height) 0);
+}
+
+.draw-reel__strip {
+  transform: translateY(calc(var(--row-height) * var(--steps) * -1));
+}
+
+/* Fast start, long deceleration, stopping exactly on the winner */
+.draw-reel__strip--animated {
+  animation: draw-reel-spin var(--duration) cubic-bezier(0.15, 0.6, 0.2, 1) both;
+}
+
+@keyframes draw-reel-spin {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(var(--row-height) * var(--steps) * -1));
+  }
+}
+
+/* Without motion, the strip would sit on the winner from the start: hide it until the
+   configured duration has elapsed, so the result is not revealed early */
+@media (prefers-reduced-motion: reduce) {
+  .draw-reel__strip--animated {
+    animation: none;
+  }
+
+  .draw-reel:not(.draw-reel--stopped) .draw-reel__strip {
+    visibility: hidden;
+  }
+}
+
+/* Row height is the same in both layers, so they stay aligned; only the font differs */
+.draw-reel__item {
+  height: var(--row-height);
+  line-height: var(--row-height);
+  font-size: var(--side-font);
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.draw-reel__layer--centre .draw-reel__item {
+  font-size: var(--centre-font);
+}
+
+/* Winner highlighted once the reel has stopped, with a "click, that's the one" pop.
+   The peak scale stays small so the name is not clipped by the centre row. */
+.draw-reel__item--winner {
+  color: #0972d3;
+  transition: color 0.3s ease-out;
+}
+
+.draw-reel__layer--centre .draw-reel__item--winner {
+  animation: draw-winner-pop 0.6s ease-out;
+}
+
+@keyframes draw-winner-pop {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.15);
+  }
+  55% {
+    transform: scale(0.94);
+  }
+  80% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* The frame lines pulse at the same time */
+.draw-reel--stopped::before,
+.draw-reel--stopped::after {
+  animation: draw-frame-pulse 0.6s ease-out;
+}
+
+@keyframes draw-frame-pulse {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  30% {
+    transform: scaleX(1.08) scaleY(2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draw-reel__layer--centre .draw-reel__item--winner,
+  .draw-reel--stopped::before,
+  .draw-reel--stopped::after {
+    animation: none;
+  }
+}
+
+/* Lighter accent in dark mode (class set by Cloudscape applyMode) */
+.awsui-dark-mode .draw-reel::before,
+.awsui-dark-mode .draw-reel::after {
+  background: #539fe5;
+}
+
+.awsui-dark-mode .draw-reel__item--winner {
+  color: #539fe5;
+}

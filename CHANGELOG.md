@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-09-26
+
+### Added
+
+- Random draw: a **Random draw** button next to **Add Participant** picks a participant at random among those checked in and not absent (registered or manually added)
+- Random draw dialog: participant names scroll on a slot-machine reel for a configurable duration, slow down and stop on the winner, shown in large type for tablets; names are enlarged in the centre row and faded above and below it, while scrolling and once stopped; the winner pops with a short zoom-in/zoom-out when the reel stops; each participant appears at most once on the reel; a **Draw again** button runs a new draw
+- Setting to choose the draw animation duration (no animation, 1, 2, 3, 4, 5 or 10 seconds; default 4 seconds)
+
 ## [1.4.5] - 2026-09-26
 
 ### Added

@@ -12,6 +12,12 @@ import {
   computeProgressSeries,
   buildExportRows,
   buildExportFileName,
+  getDrawEligible,
+  secureRandom,
+  pickRandom,
+  shuffle,
+  buildReel,
+  reelLength,
 } from './participants';
 import { translations } from '../translations';
 
@@ -285,5 +291,105 @@ describe('buildExportFileName', () => {
 
   it('omits the prefix without event name', () => {
     expect(buildExportFileName('', date)).toBe('participants_2026-09-26.xlsx');
+  });
+});
+
+describe('getDrawEligible', () => {
+  it('keeps checked-in, non-absent participants, registered or manual', () => {
+    const list = [
+      participant({ id: '1', checkedIn: true }),
+      participant({ id: '2', checkedIn: true, manuallyAdded: true }),
+      participant({ id: '3', checkedIn: true, absent: true }),
+      participant({ id: '4' }),
+    ];
+    expect(getDrawEligible(list).map((p) => p.id)).toEqual(['1', '2']);
+  });
+});
+
+describe('secureRandom', () => {
+  it('returns numbers in [0, 1)', () => {
+    for (let i = 0; i < 1000; i++) {
+      const value = secureRandom();
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThan(1);
+    }
+  });
+});
+
+describe('pickRandom', () => {
+  it('returns null for an empty list', () => {
+    expect(pickRandom([])).toBeNull();
+  });
+
+  it('maps the random number to an index', () => {
+    const items = ['a', 'b', 'c', 'd'];
+    expect(pickRandom(items, () => 0)).toBe('a');
+    expect(pickRandom(items, () => 0.5)).toBe('c');
+    expect(pickRandom(items, () => 0.999999)).toBe('d');
+  });
+
+  it('can pick every item', () => {
+    const items = ['a', 'b', 'c'];
+    const picked = new Set(Array.from({ length: 300 }, () => pickRandom(items)));
+    expect(picked).toEqual(new Set(items));
+  });
+});
+
+describe('shuffle', () => {
+  it('returns a permutation without mutating the input', () => {
+    const items = [1, 2, 3, 4, 5];
+    const shuffled = shuffle(items);
+    expect([...shuffled].sort()).toEqual(items);
+    expect(items).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+describe('buildReel', () => {
+  const people = Array.from({ length: 50 }, (_, i) => participant({ id: `p${i}` }));
+  const ids = (items) => items.map((p) => p.id);
+
+  it('uses each participant at most once, winner included', () => {
+    const { items } = buildReel(people, people[7], 30);
+    expect(items).toHaveLength(30);
+    expect(new Set(ids(items)).size).toBe(30);
+  });
+
+  it('places the winner with exactly one name after it', () => {
+    const { items, winnerIndex } = buildReel(people, people[7], 30);
+    expect(items[winnerIndex].id).toBe('p7');
+    expect(winnerIndex).toBe(items.length - 2);
+  });
+
+  it('is limited by the number of eligible participants', () => {
+    const { items, winnerIndex } = buildReel(people.slice(0, 4), people[0], 30);
+    expect(ids(items).sort()).toEqual(['p0', 'p1', 'p2', 'p3']);
+    expect(items[winnerIndex].id).toBe('p0');
+  });
+
+  it('adds placeholders around the winner when too few are eligible', () => {
+    expect(buildReel([people[0]], people[0], 30)).toEqual({
+      items: [
+        expect.objectContaining({ placeholder: true }),
+        people[0],
+        expect.objectContaining({ placeholder: true }),
+      ],
+      winnerIndex: 1,
+    });
+    const two = buildReel(people.slice(0, 2), people[0], 30);
+    expect(ids(two.items)).toEqual(['placeholder-before', 'p0', 'p1']);
+  });
+
+  it('has one name on each side of the winner without animation', () => {
+    const { items, winnerIndex } = buildReel(people, people[3], 3);
+    expect(items).toHaveLength(3);
+    expect(winnerIndex).toBe(1);
+  });
+});
+
+describe('reelLength', () => {
+  it('scales with the duration within bounds', () => {
+    expect(reelLength(2)).toBe(30);
+    expect(reelLength(0.1)).toBe(3);
+    expect(reelLength(10)).toBe(80);
   });
 });

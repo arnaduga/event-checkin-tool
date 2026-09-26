@@ -41,7 +41,12 @@ import {
   computeProgressSeries,
   buildExportRows,
   buildExportFileName,
+  getDrawEligible,
+  pickRandom,
+  buildReel,
+  reelLength,
 } from './lib/participants';
+import DrawModal from './DrawModal';
 import {
   STORAGE_KEY,
   SETTINGS_KEY,
@@ -53,6 +58,8 @@ import {
 } from './lib/storage';
 
 const APP_VERSION = packageJson.version;
+const DEFAULT_DRAW_DURATION = 4; // seconds
+const DRAW_DURATION_OPTIONS = [0, 1, 2, 3, 4, 5, 10];
 
 function CheckInButton({ item, onToggle, t }) {
   if (!item.checkedIn) {
@@ -94,6 +101,8 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showChangelogModal, setShowChangelogModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [draw, setDraw] = useState(null); // null | { id, winner, reel: { items, winnerIndex }, rolling }
+  const drawTimerRef = useRef(null);
   const [splitPanelPreferences, setSplitPanelPreferences] = useState(
     storedSettings.splitPanelPreferences ?? { position: 'side' }
   );
@@ -107,6 +116,9 @@ function App() {
   );
   const [eventName, setEventName] = useState(storedSettings.eventName ?? '');
   const [statusFilter, setStatusFilter] = useState(storedSettings.statusFilter ?? { value: 'all' });
+  const [drawDuration, setDrawDuration] = useState(
+    storedSettings.drawDuration ?? DEFAULT_DRAW_DURATION
+  );
 
   // Get translations
   const t = translations[language.value] ?? translations.fr_FR;
@@ -137,8 +149,12 @@ function App() {
       pageSize,
       statusFilter,
       splitPanelPreferences,
+      drawDuration,
     });
-  }, [language, darkMode, eventName, pageSize, statusFilter, splitPanelPreferences]);
+  }, [language, darkMode, eventName, pageSize, statusFilter, splitPanelPreferences, drawDuration]);
+
+  // Stop a pending draw timer when the app unmounts
+  useEffect(() => () => clearTimeout(drawTimerRef.current), []);
 
   // Apply dark mode
   useEffect(() => {
@@ -284,6 +300,30 @@ function App() {
     } else {
       loadFile(file);
     }
+  };
+
+  // Random draw among checked-in, non-absent participants
+  const drawEligible = useMemo(() => getDrawEligible(participants), [participants]);
+
+  const startDraw = () => {
+    const winner = pickRandom(drawEligible);
+    if (!winner) return;
+    clearTimeout(drawTimerRef.current);
+    const rolling = drawDuration > 0;
+    // Names on the reel; without animation, only the winner and its two neighbours
+    const reel = buildReel(drawEligible, winner, rolling ? reelLength(drawDuration) : 3);
+    setDraw({ id: createId('draw'), winner, reel, rolling });
+    if (rolling) {
+      drawTimerRef.current = setTimeout(
+        () => setDraw((d) => (d ? { ...d, rolling: false } : d)),
+        drawDuration * 1000
+      );
+    }
+  };
+
+  const closeDraw = () => {
+    clearTimeout(drawTimerRef.current);
+    setDraw(null);
   };
 
   // Handle check-in toggle
@@ -513,6 +553,11 @@ function App() {
     { value: 'tlh_TLH', label: 'tlhIngan Hol' },
   ];
 
+  const drawDurationOptions = DRAW_DURATION_OPTIONS.map((seconds) => ({
+    value: String(seconds),
+    label: seconds === 0 ? t.drawNoAnimation : t.drawSeconds.replace('{count}', seconds),
+  }));
+
   const statusFilterOptions = useMemo(
     () => [
       { value: 'all', label: t.filterAll },
@@ -555,6 +600,14 @@ function App() {
               <Toggle checked={darkMode} onChange={({ detail }) => setDarkMode(detail.checked)}>
                 {darkMode ? t.toggleOn : t.toggleOff}
               </Toggle>
+            </FormField>
+
+            <FormField label={t.drawDuration} description={t.drawDurationDescription}>
+              <Select
+                selectedOption={drawDurationOptions.find((o) => o.value === String(drawDuration))}
+                onChange={({ detail }) => setDrawDuration(Number(detail.selectedOption.value))}
+                options={drawDurationOptions}
+              />
             </FormField>
 
             <Box textAlign="center" padding={{ top: 'xl' }}>
@@ -714,6 +767,14 @@ function App() {
                       }}
                     >
                       {t.addParticipant}
+                    </Button>
+                    <Button
+                      iconName="ticket"
+                      onClick={startDraw}
+                      disabled={drawEligible.length === 0}
+                      disabledReason={t.drawNoEligible}
+                    >
+                      {t.drawButton}
                     </Button>
                   </SpaceBetween>
                 }
@@ -947,6 +1008,15 @@ function App() {
               </ReactMarkdown>
             </Box>
           </Modal>
+
+          <DrawModal
+            draw={draw}
+            duration={draw?.rolling ? drawDuration : 0}
+            eligibleCount={drawEligible.length}
+            onDrawAgain={startDraw}
+            onDismiss={closeDraw}
+            t={t}
+          />
 
           <Modal
             onDismiss={closeConfirm}

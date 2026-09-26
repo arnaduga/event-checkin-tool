@@ -1,0 +1,25 @@
+# 01 — Glossary
+
+| Term                       | Definition                                                                                                                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Participant**            | A person expected at, or present at, the event. Has a first name, a last name, an optional email, a check-in status and an absent flag.                                                     |
+| **Participant list**       | The set of all participants of the current event on the device. There is exactly one list at a time.                                                                                        |
+| **Registered participant** | A participant coming from an imported file (type _Registered_).                                                                                                                             |
+| **Manual participant**     | A participant added by hand during the event (type _Manual_), typically a walk-in.                                                                                                          |
+| **Check-in**               | Recording that a participant has arrived. Stores the date and time of arrival (_check-in time_).                                                                                            |
+| **Check-out**              | Undoing a check-in (the participant is set back to _not checked in_). It is a correction, not a "leaving" event.                                                                            |
+| **Absent**                 | Flag set by staff on a participant known not to come (e.g. cancelled). Independent from the check-in status. Absent participants cannot be checked in from the table and cannot win a draw. |
+| **Pending**                | Participants not checked in (total minus checked in). Absent participants are counted as pending.                                                                                           |
+| **Eligible participant**   | A participant who can win a random draw: checked in **and** not absent.                                                                                                                     |
+| **Random draw**            | Random selection of one eligible participant (e.g. prize draw).                                                                                                                             |
+| **Reel**                   | Slot-machine style animation of the random draw: a vertical strip of names scrolling in a window of 3 rows and stopping on the winner.                                                      |
+| **Winner**                 | The participant selected by a random draw.                                                                                                                                                  |
+| **Event name**             | Free text naming the event. Shown in the header and used in the export file name.                                                                                                           |
+| **Reset (check-ins only)** | Clears check-ins and absent flags, keeps participants.                                                                                                                                      |
+| **Full reset**             | Removes all participants and the event name.                                                                                                                                                |
+| **Settings**               | User preferences stored on the device: language, dark mode, event name, page size, status filter, settings panel layout, draw animation duration.                                           |
+| **Settings panel**         | Side (or bottom) panel of the application holding the settings, links and version.                                                                                                          |
+| **Notification**           | Dismissible message shown at the top of the page (success, warning, error), e.g. after an import.                                                                                           |
+| **Confirmation dialog**    | Modal dialog asking the user to confirm an action before it is executed.                                                                                                                    |
+| **Local storage**          | The browser's `localStorage`: persistent key/value storage, scoped to the device, browser and site.                                                                                         |
+| **PWA**                    | Progressive Web App: the application is cached by a service worker and works offline; it can be installed on the home screen.                                                               |

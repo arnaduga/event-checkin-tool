@@ -47,6 +47,7 @@ Open `http://localhost:3000` in your browser.
 - [How-to guides](docs/how-to/) — step-by-step task instructions
 - [Reference](docs/reference/) — Excel format, UI layout, data storage
 - [Explanation](docs/explanation/) — design decisions and architecture
+- [Specifications](specs/) — functional, non-functional and technical specs (source of truth for changes, spec-driven development)
 
 ## Build & Deploy
 

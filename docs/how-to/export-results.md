@@ -12,15 +12,15 @@ This guide shows how to export the current participant list and check-in statuse
 
 The exported file contains a single sheet named `Participants`, with one row per participant and the following columns (column headers and values use the current interface language):
 
-| Column | Content |
-|---|---|
-| First Name | Participant first name |
-| Last Name | Participant last name |
-| Email | Participant email address |
-| Type | "Registered" (from import) or "Manual" (added during event) |
-| Status | "Done" (checked in) or "Not Checked In" |
-| Check-in Time | Localized date and time of check-in, or `-` if not checked in |
-| Absent | "Absent" if the participant is flagged as absent, `-` otherwise |
+| Column        | Content                                                         |
+| ------------- | --------------------------------------------------------------- |
+| First Name    | Participant first name                                          |
+| Last Name     | Participant last name                                           |
+| Email         | Participant email address                                       |
+| Type          | "Registered" (from import) or "Manual" (added during event)     |
+| Status        | "Done" (checked in) or "Not Checked In"                         |
+| Check-in Time | Localized date and time of check-in, or `-` if not checked in   |
+| Absent        | "Absent" if the participant is flagged as absent, `-` otherwise |
 
 ## File naming
 

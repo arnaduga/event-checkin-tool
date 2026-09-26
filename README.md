@@ -19,12 +19,27 @@ A browser-based participant check-in application for events. No server required 
 
 ## Quick Start
 
+Requires Node.js 22.12 or later.
+
 ```bash
 npm install
 npm run dev
 ```
 
 Open `http://localhost:3000` in your browser.
+
+## Development
+
+| Command                | Description                                   |
+| ---------------------- | --------------------------------------------- |
+| `npm run dev`          | Start the development server on port 3000     |
+| `npm run lint`         | Run ESLint                                    |
+| `npm run format`       | Format all files with Prettier                |
+| `npm run format:check` | Check formatting without writing              |
+| `npm test`             | Run the test suite once (Vitest)              |
+| `npm run test:watch`   | Run tests in watch mode                       |
+| `npm run check`        | Lint + formatting check + tests, as run in CI |
+| `npm run build`        | Production build to `dist/`                   |
 
 ## Documentation
 
@@ -38,7 +53,7 @@ Open `http://localhost:3000` in your browser.
 npm run build   # outputs to dist/
 ```
 
-Deployed automatically to GitHub Pages on push to `main`.
+Deployed automatically to GitHub Pages on push to `main`, after lint, formatting check and tests pass.
 
 ## Tech Stack
 
@@ -47,6 +62,9 @@ Deployed automatically to GitHub Pages on push to `main`.
 - [Cloudscape Design System](https://cloudscape.design/) — UI components
 - [xlsx](https://github.com/SheetJS/sheetjs) — Excel parsing and export
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) — offline support
+- [Vitest](https://vitest.dev/) + [Testing Library](https://testing-library.com/) — tests
+- [ESLint](https://eslint.org/) with React and React Hooks plugins — linting
+- [Prettier](https://prettier.io/) — code formatting
 
 ## Versioning
 

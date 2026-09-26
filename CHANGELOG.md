@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.4] - 2026-09-26
+
+### Added
+
+- Linting with ESLint (React and React Hooks rules) and a test suite with Vitest and Testing Library (`npm run lint`, `npm test`, `npm run check`)
+- Code formatting with Prettier (`npm run format`, `npm run format:check`); the whole codebase and documentation have been reformatted
+- Lint, formatting check and tests run in CI before every deployment; a failure blocks the deployment
+
+### Changed
+
+- Pure logic (import parsing, filtering, sorting, statistics, chart series, export) moved from `App.jsx` to `src/lib/participants.js`; storage helpers moved to `src/lib/storage.js`
+- Stored participants and settings are loaded before the first render instead of in an effect
+- CI now uses Node.js 24 (Node.js 22.12 or later is required)
+
+### Fixed
+
+- The application no longer crashes when `localStorage` is unavailable (e.g. some private browsing modes)
+- Removing all participants now also clears them from storage
+- Manually added participants get a collision-free identifier
+
 ## [1.4.3] - 2026-09-26
 
 ### Added

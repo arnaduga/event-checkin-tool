@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -28,12 +28,29 @@ import { applyMode, Mode } from '@cloudscape-design/global-styles';
 import { translations } from './translations';
 import { changelog } from './changelog';
 import packageJson from '../package.json';
+import {
+  toLocale,
+  parseParticipantRows,
+  normalizeName,
+  createId,
+  filterParticipants,
+  sortParticipants,
+  computeStats,
+  computeProgressSeries,
+  buildExportRows,
+  buildExportFileName,
+} from './lib/participants';
+import {
+  STORAGE_KEY,
+  SETTINGS_KEY,
+  LAST_LOAD_KEY,
+  readJSON,
+  writeJSON,
+  writeText,
+  removeKey,
+} from './lib/storage';
 
-const STORAGE_KEY = 'event-checkin-participants';
-const SETTINGS_KEY = 'event-checkin-settings';
-const LAST_LOAD_KEY = 'event-checkin-last-load';
 const APP_VERSION = packageJson.version;
-
 
 function CheckInButton({ item, onToggle, t }) {
   if (!item.checkedIn) {
@@ -52,10 +69,13 @@ function CheckInButton({ item, onToggle, t }) {
 }
 
 function App() {
-  const [participants, setParticipants] = useState([]);
+  // Stored settings are read once, synchronously, to initialize state
+  const [storedSettings] = useState(() => readJSON(SETTINGS_KEY, {}));
+
+  const [participants, setParticipants] = useState(() => readJSON(STORAGE_KEY, []));
   const [filteringText, setFilteringText] = useState('');
   const [currentPageIndex, setCurrentPageIndex] = useState(1);
-  const [pageSize, setPageSize] = useState(0);
+  const [pageSize, setPageSize] = useState(storedSettings.pageSize ?? 0);
   const [sortingColumn, setSortingColumn] = useState({ sortingField: 'lastName' });
   const [isAscending, setIsAscending] = useState(true);
   const [participantModal, setParticipantModal] = useState(null); // null | { mode: 'add'|'edit', data: {...}, errors: {...} }
@@ -69,104 +89,53 @@ function App() {
   const [showEditNameModal, setShowEditNameModal] = useState(false);
   const [pendingEventName, setPendingEventName] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [autoCheckIn, setAutoCheckIn] = useState(true);
-  const [isInitialMount, setIsInitialMount] = useState(true);
   const [showChangelogModal, setShowChangelogModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [splitPanelPreferences, setSplitPanelPreferences] = useState({
-    position: 'side'
-  });
+  const [splitPanelPreferences, setSplitPanelPreferences] = useState(
+    storedSettings.splitPanelPreferences ?? { position: 'side' }
+  );
 
-  // Detect system dark mode preference
-  const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-  // Settings state with system defaults
-  const [language, setLanguage] = useState({ value: 'fr_FR', label: 'Français (FR)' });
-  const [darkMode, setDarkMode] = useState(systemPrefersDark);
-  const [eventName, setEventName] = useState('');
-
-  const [statusFilter, setStatusFilter] = useState({ value: 'all', label: 'All' });
+  // Settings state, defaulting to French and the system dark mode preference
+  const [language, setLanguage] = useState(
+    storedSettings.language ?? { value: 'fr_FR', label: 'Français (FR)' }
+  );
+  const [darkMode, setDarkMode] = useState(
+    () => storedSettings.darkMode ?? !!window.matchMedia?.('(prefers-color-scheme: dark)').matches
+  );
+  const [eventName, setEventName] = useState(storedSettings.eventName ?? '');
+  const [statusFilter, setStatusFilter] = useState(storedSettings.statusFilter ?? { value: 'all' });
 
   // Get translations
-  const t = translations[language.value];
+  const t = translations[language.value] ?? translations.fr_FR;
+  const locale = toLocale(language.value);
 
-  const [lastLoad, setLastLoad] = useState(() => localStorage.getItem(LAST_LOAD_KEY));
+  // Timestamp of this page load, shown in the settings panel
+  const [lastLoad] = useState(() => new Date().toISOString());
 
-  // Record load timestamp on every page load
   useEffect(() => {
-    const now = new Date().toISOString();
-    localStorage.setItem(LAST_LOAD_KEY, now);
-    setLastLoad(now);
-  }, []);
+    writeText(LAST_LOAD_KEY, lastLoad);
+  }, [lastLoad]);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    // Load participants
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setParticipants(parsed);
-      } catch (e) {
-        console.error('Failed to parse stored data:', e);
-      }
-    }
-
-    // Load settings
-    const settingsStored = localStorage.getItem(SETTINGS_KEY);
-    if (settingsStored) {
-      try {
-        const settings = JSON.parse(settingsStored);
-        if (settings.language) {
-          setLanguage(settings.language);
-        }
-        if (settings.darkMode !== undefined) {
-          setDarkMode(settings.darkMode);
-        }
-        if (settings.eventName) {
-          setEventName(settings.eventName);
-        }
-        if (settings.pageSize !== undefined) {
-          setPageSize(settings.pageSize);
-        }
-        if (settings.statusFilter) {
-          setStatusFilter(settings.statusFilter);
-        }
-        if (settings.splitPanelPreferences) {
-          setSplitPanelPreferences(settings.splitPanelPreferences);
-        }
-
-      } catch (e) {
-        console.error('Failed to parse settings:', e);
-      }
-    }
-
-    // Mark initial mount as complete
-    setIsInitialMount(false);
-  }, []);
-
-  // Save to localStorage whenever participants change
+  // Persist participants whenever they change
   useEffect(() => {
     if (participants.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(participants));
+      writeJSON(STORAGE_KEY, participants);
+    } else {
+      removeKey(STORAGE_KEY);
     }
   }, [participants]);
 
-  // Save settings to localStorage (skip on initial mount)
+  // Persist settings whenever they change
   useEffect(() => {
-    if (!isInitialMount) {
-      const settings = {
-        language,
-        darkMode,
-        eventName,
-
-        pageSize,
-        statusFilter,
-        splitPanelPreferences,
-      };
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    }
-  }, [language, darkMode, eventName, pageSize, statusFilter, splitPanelPreferences, isInitialMount]);
+    writeJSON(SETTINGS_KEY, {
+      language,
+      darkMode,
+      eventName,
+      pageSize,
+      statusFilter,
+      splitPanelPreferences,
+    });
+  }, [language, darkMode, eventName, pageSize, statusFilter, splitPanelPreferences]);
 
   // Apply dark mode
   useEffect(() => {
@@ -179,20 +148,8 @@ function App() {
     }
   }, [showEditNameModal]);
 
-
-  // Normalize name: lowercase, then capitalize the first letter of each part
-  // (separated by spaces, hyphens or apostrophes), e.g. JEAN-PIERRE -> Jean-Pierre
-  const normalizeName = (name) => {
-    if (!name) return '';
-    return String(name)
-      .trim()
-      .replace(/\s+/g, ' ')
-      .toLowerCase()
-      .replace(/(^|[\s\-'’])(\p{L})/gu, (_, sep, letter) => sep + letter.toUpperCase());
-  };
-
   const notify = (type, content) => {
-    const id = `${Date.now()}-${Math.random()}`;
+    const id = createId('notification');
     setNotifications((prev) => [
       ...prev,
       {
@@ -222,22 +179,10 @@ function App() {
         return;
       }
 
-      const now = Date.now();
-      const transformedData = jsonData
-        .map((row, index) => ({
-          id: `participant-${index}-${now}`,
-          firstName: normalizeName(row['Prénom'] || row['First Name'] || row['Prenom'] || row['prénom'] || ''),
-          lastName: normalizeName(row['Nom'] || row['Last Name'] || row['nom'] || ''),
-          email: String(row['Email'] || row['email'] || '').trim(),
-          checkedIn: false,
-          checkedInAt: null,
-          absent: false,
-          manuallyAdded: false,
-        }))
-        .filter((p) => p.firstName || p.lastName);
+      const { participants: imported, skipped } = parseParticipantRows(jsonData);
 
       // Keep the current list untouched when nothing usable was found
-      if (transformedData.length === 0) {
+      if (imported.length === 0) {
         notify('error', t.importNoParticipants);
         return;
       }
@@ -246,11 +191,10 @@ function App() {
         const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
         setEventName(nameWithoutExt);
       }
-      setParticipants(transformedData);
+      setParticipants(imported);
       setCurrentPageIndex(1);
 
-      const skipped = jsonData.length - transformedData.length;
-      notify('success', t.importSuccess.replace('{count}', transformedData.length));
+      notify('success', t.importSuccess.replace('{count}', imported.length));
       if (skipped > 0) {
         notify('warning', t.importSkippedRows.replace('{count}', skipped));
       }
@@ -272,7 +216,7 @@ function App() {
     setConfirmModal({ visible: true, action: 'export', message: t.confirmExport });
   };
 
-  const handleConfirm_action = (action) => {
+  const runConfirmedAction = (action) => {
     if (action === 'import') {
       loadFile(pendingFile);
       setPendingFile(null);
@@ -281,18 +225,17 @@ function App() {
       setCurrentPageIndex(1);
       setPageSize(0);
       setEventName('');
-      localStorage.removeItem(STORAGE_KEY);
     } else if (action === 'resetCheckinOnly') {
-      setParticipants((prev) => prev.map((p) => ({ ...p, checkedIn: false, checkedInAt: null, absent: false })));
+      setParticipants((prev) =>
+        prev.map((p) => ({ ...p, checkedIn: false, checkedInAt: null, absent: false }))
+      );
     } else if (action === 'export') {
       handleExport();
     } else if (action === 'uncheck') {
       if (pendingCheckOut) {
         setParticipants((prev) =>
           prev.map((p) =>
-            p.id === pendingCheckOut.id
-              ? { ...p, checkedIn: false, checkedInAt: null }
-              : p
+            p.id === pendingCheckOut.id ? { ...p, checkedIn: false, checkedInAt: null } : p
           )
         );
         setPendingCheckOut(null);
@@ -303,7 +246,7 @@ function App() {
   const handleConfirm = () => {
     const action = confirmModal.action;
     setConfirmModal({ visible: false, action: null, message: '' });
-    handleConfirm_action(action);
+    runConfirmedAction(action);
   };
 
   const handleFileInputChange = (e) => {
@@ -337,7 +280,7 @@ function App() {
   const openAddModal = () => {
     setParticipantModal({
       mode: 'add',
-      data: { firstName: '', lastName: '', email: '', checkedIn: autoCheckIn, absent: false },
+      data: { firstName: '', lastName: '', email: '', checkedIn: true, absent: false },
       errors: { firstName: false, lastName: false },
     });
     setTimeout(() => participantFirstNameRef.current?.focus(), 0);
@@ -368,7 +311,7 @@ function App() {
 
     if (mode === 'add') {
       const participant = {
-        id: `manual-${Date.now()}`,
+        id: createId('manual'),
         firstName: normalizeName(data.firstName),
         lastName: normalizeName(data.lastName),
         email: data.email,
@@ -380,7 +323,9 @@ function App() {
       setParticipants((prev) => [...prev, participant]);
       addJustSubmittedRef.current = true;
       document.activeElement?.blur();
-      setTimeout(() => { addJustSubmittedRef.current = false; }, 500);
+      setTimeout(() => {
+        addJustSubmittedRef.current = false;
+      }, 500);
     } else {
       setParticipants((prev) =>
         prev.map((p) =>
@@ -392,7 +337,9 @@ function App() {
                 email: data.email,
                 checkedIn: data.checkedIn,
                 checkedInAt: data.checkedIn
-                  ? (p.checkedIn ? p.checkedInAt : new Date().toISOString())
+                  ? p.checkedIn
+                    ? p.checkedInAt
+                    : new Date().toISOString()
                   : null,
                 absent: data.absent ?? false,
               }
@@ -406,29 +353,10 @@ function App() {
   // Handle export to Excel
   const handleExport = () => {
     try {
-      const exportLocale = language.value === 'tlh_TLH' ? 'fr-FR' : language.value.replace('_', '-');
-      const exportData = participants.map((p) => ({
-        [t.columnFirstName]: p.firstName,
-        [t.columnLastName]: p.lastName,
-        [t.columnEmail]: p.email,
-        [t.columnType]: p.manuallyAdded ? t.typeManual : t.typeRegistered,
-        [t.columnStatus]: p.checkedIn ? t.statusCheckedIn : t.statusNotCheckedIn,
-        [t.columnCheckedInAt]: p.checkedInAt
-          ? new Date(p.checkedInAt).toLocaleString(exportLocale)
-          : '-',
-        [t.columnAbsent]: p.absent ? t.absent : '-',
-      }));
-
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const worksheet = XLSX.utils.json_to_sheet(buildExportRows(participants, t, locale));
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Participants');
-
-      // Generate file name
-      const timestamp = new Date().toISOString().split('T')[0];
-      const eventPrefix = eventName ? `${eventName.replace(/[^a-z0-9]/gi, '_')}_` : '';
-      const fileName = `${eventPrefix}participants_${timestamp}.xlsx`;
-
-      XLSX.writeFile(workbook, fileName);
+      XLSX.writeFile(workbook, buildExportFileName(eventName));
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       notify('error', t.exportError);
@@ -436,56 +364,15 @@ function App() {
   };
 
   // Filter and sort participants
-  const filteredParticipants = useMemo(() => {
-    let filtered = participants;
-
-    // Apply status filter
-    if (statusFilter.value === 'checkedIn') {
-      filtered = filtered.filter((p) => p.checkedIn);
-    } else if (statusFilter.value === 'notCheckedIn') {
-      filtered = filtered.filter((p) => !p.checkedIn);
-    } else if (statusFilter.value === 'absent') {
-      filtered = filtered.filter((p) => p.absent);
-    }
-
-    // Apply text filter
-    if (filteringText) {
-      const lowerFilter = filteringText.toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.firstName.toLowerCase().includes(lowerFilter) ||
-          p.lastName.toLowerCase().includes(lowerFilter) ||
-          p.email.toLowerCase().includes(lowerFilter)
-      );
-    }
-
-    // Apply sorting
-    if (sortingColumn && sortingColumn.sortingField) {
-      filtered = [...filtered].sort((a, b) => {
-        const field = sortingColumn.sortingField;
-        let aVal = a[field] || '';
-        let bVal = b[field] || '';
-
-        // Handle special cases
-        if (field === 'checkedIn') {
-          aVal = a.checkedIn ? 1 : 0;
-          bVal = b.checkedIn ? 1 : 0;
-        } else if (field === 'type') {
-          aVal = a.manuallyAdded ? 1 : 0;
-          bVal = b.manuallyAdded ? 1 : 0;
-        } else {
-          aVal = aVal.toString().toLowerCase();
-          bVal = bVal.toString().toLowerCase();
-        }
-
-        if (aVal < bVal) return isAscending ? -1 : 1;
-        if (aVal > bVal) return isAscending ? 1 : -1;
-        return 0;
-      });
-    }
-
-    return filtered;
-  }, [participants, filteringText, sortingColumn, isAscending, statusFilter]);
+  const filteredParticipants = useMemo(
+    () =>
+      sortParticipants(
+        filterParticipants(participants, { status: statusFilter.value, text: filteringText }),
+        sortingColumn?.sortingField,
+        isAscending
+      ),
+    [participants, filteringText, sortingColumn, isAscending, statusFilter]
+  );
 
   // Paginated participants
   const paginatedParticipants = useMemo(() => {
@@ -495,8 +382,8 @@ function App() {
     return filteredParticipants.slice(start, end);
   }, [filteredParticipants, currentPageIndex, pageSize]);
 
-  const columnDefinitions = useMemo(() => {
-    const locale = language.value === 'tlh_TLH' ? 'fr-FR' : language.value.replace('_', '-');
+  // Not memoized: cells must always call the current handlers
+  const columnDefinitions = (() => {
     const dim = (item, content) =>
       item.absent ? <span style={{ opacity: 0.4 }}>{content}</span> : content;
     return [
@@ -515,11 +402,16 @@ function App() {
       {
         id: 'lastName',
         header: t.columnLastName,
-        cell: (item) => dim(item,
-          <div onClick={() => handleCheckIn(item)} style={{ cursor: item.absent ? 'default' : 'pointer' }}>
-            {item.lastName}
-          </div>
-        ),
+        cell: (item) =>
+          dim(
+            item,
+            <div
+              onClick={() => handleCheckIn(item)}
+              style={{ cursor: item.absent ? 'default' : 'pointer' }}
+            >
+              {item.lastName}
+            </div>
+          ),
         sortingField: 'lastName',
         width: 220,
         minWidth: 150,
@@ -527,11 +419,16 @@ function App() {
       {
         id: 'firstName',
         header: t.columnFirstName,
-        cell: (item) => dim(item,
-          <div onClick={() => handleCheckIn(item)} style={{ cursor: item.absent ? 'default' : 'pointer' }}>
-            {item.firstName}
-          </div>
-        ),
+        cell: (item) =>
+          dim(
+            item,
+            <div
+              onClick={() => handleCheckIn(item)}
+              style={{ cursor: item.absent ? 'default' : 'pointer' }}
+            >
+              {item.firstName}
+            </div>
+          ),
         sortingField: 'firstName',
         width: 220,
         minWidth: 150,
@@ -539,11 +436,13 @@ function App() {
       {
         id: 'type',
         header: t.columnType,
-        cell: (item) => dim(item,
-          <StatusIndicator type={item.manuallyAdded ? 'warning' : 'success'}>
-            {item.manuallyAdded ? t.typeManual : t.typeRegistered}
-          </StatusIndicator>
-        ),
+        cell: (item) =>
+          dim(
+            item,
+            <StatusIndicator type={item.manuallyAdded ? 'warning' : 'success'}>
+              {item.manuallyAdded ? t.typeManual : t.typeRegistered}
+            </StatusIndicator>
+          ),
         sortingField: 'type',
         width: 140,
         minWidth: 120,
@@ -551,9 +450,8 @@ function App() {
       {
         id: 'checkedInAt',
         header: t.columnCheckedInAt,
-        cell: (item) => dim(item,
-          item.checkedInAt ? new Date(item.checkedInAt).toLocaleString(locale) : '-'
-        ),
+        cell: (item) =>
+          dim(item, item.checkedInAt ? new Date(item.checkedInAt).toLocaleString(locale) : '-'),
         sortingField: 'checkedInAt',
         width: 180,
         minWidth: 140,
@@ -568,63 +466,16 @@ function App() {
         minWidth: 50,
       },
     ];
-  }, [t, language]);
+  })();
 
-  const stats = useMemo(() => {
-    const total = participants.length;
-    const checkedIn = participants.filter((p) => p.checkedIn).length;
-    const manual = participants.filter((p) => p.manuallyAdded).length;
-    return { total, checkedIn, manual };
-  }, [participants]);
+  const stats = useMemo(() => computeStats(participants), [participants]);
 
   const chartSeries = useMemo(() => {
-    if (participants.length === 0) return null;
-
-    const checkedInTimes = participants
-      .filter((p) => p.checkedIn && p.checkedInAt)
-      .map((p) => new Date(p.checkedInAt).getTime())
-      .sort((a, b) => a - b);
-
-    if (checkedInTimes.length === 0) return null;
-
-    const startTime = checkedInTimes[0];
-    const endTime = checkedInTimes[checkedInTimes.length - 1];
-
-    const totalAtStart = participants.filter((p) => !p.manuallyAdded).length;
-    const manualWithoutTime = participants.filter((p) => p.manuallyAdded && !p.checkedInAt).length;
-    const manualAdditions = participants
-      .filter((p) => p.manuallyAdded && p.checkedInAt)
-      .map((p) => new Date(p.checkedInAt).getTime())
-      .sort((a, b) => a - b);
-
-    let expectedRaw = [];
-    let runningTotal = totalAtStart + manualWithoutTime;
-    expectedRaw.push({ x: new Date(startTime), y: runningTotal });
-    for (const ts of manualAdditions) {
-      if (ts >= startTime) {
-        runningTotal += 1;
-        expectedRaw.push({ x: new Date(ts), y: runningTotal });
-      }
-    }
-    if (endTime > startTime) {
-      expectedRaw.push({ x: new Date(endTime), y: runningTotal });
-    }
-
-    const checkedInRaw = checkedInTimes.map((ts, i) => ({ x: new Date(ts), y: i + 1 }));
-
+    const progress = computeProgressSeries(participants);
+    if (!progress) return null;
     return [
-      {
-        title: t.chartExpected,
-        type: 'line',
-        data: expectedRaw,
-        color: '#0972d3',
-      },
-      {
-        title: t.chartCheckedIn,
-        type: 'line',
-        data: checkedInRaw,
-        color: '#67a353',
-      },
+      { title: t.chartExpected, type: 'line', data: progress.expected, color: '#0972d3' },
+      { title: t.chartCheckedIn, type: 'line', data: progress.checkedIn, color: '#67a353' },
     ];
   }, [participants, t]);
 
@@ -636,12 +487,15 @@ function App() {
     { value: 'tlh_TLH', label: 'tlhIngan Hol' },
   ];
 
-  const statusFilterOptions = useMemo(() => [
-    { value: 'all', label: t.filterAll },
-    { value: 'checkedIn', label: t.filterCheckedIn },
-    { value: 'notCheckedIn', label: t.filterNotCheckedIn },
-    { value: 'absent', label: t.filterAbsent },
-  ], [t]);
+  const statusFilterOptions = useMemo(
+    () => [
+      { value: 'all', label: t.filterAll },
+      { value: 'checkedIn', label: t.filterCheckedIn },
+      { value: 'notCheckedIn', label: t.filterNotCheckedIn },
+      { value: 'absent', label: t.filterAbsent },
+    ],
+    [t]
+  );
 
   // Label always follows the current language; only the value matters in state
   const selectedStatusOption =
@@ -657,11 +511,11 @@ function App() {
       splitPanelPreferences={splitPanelPreferences}
       onSplitPanelPreferencesChange={({ detail }) => setSplitPanelPreferences(detail)}
       splitPanelSize={300}
-      onSplitPanelResize={({ detail }) => setSplitPanelPreferences((p) => ({ ...p, size: detail.size }))}
+      onSplitPanelResize={({ detail }) =>
+        setSplitPanelPreferences((p) => ({ ...p, size: detail.size }))
+      }
       splitPanel={
-        <SplitPanel
-          header={<Header variant="h2">{t.settingsTitle}</Header>}
-        >
+        <SplitPanel header={<Header variant="h2">{t.settingsTitle}</Header>}>
           <SpaceBetween size="l">
             <FormField label={t.language}>
               <Select
@@ -672,10 +526,7 @@ function App() {
             </FormField>
 
             <FormField label={t.darkMode}>
-              <Toggle
-                checked={darkMode}
-                onChange={({ detail }) => setDarkMode(detail.checked)}
-              >
+              <Toggle checked={darkMode} onChange={({ detail }) => setDarkMode(detail.checked)}>
                 {darkMode ? t.toggleOn : t.toggleOff}
               </Toggle>
             </FormField>
@@ -688,18 +539,22 @@ function App() {
                     external={true}
                     externalIconAriaLabel="Opens in a new tab"
                     variant="primary"
-                  >{t.footerGithub}</Link>
+                  >
+                    {t.footerGithub}
+                  </Link>
                   <Link
                     onFollow={(e) => {
                       e.preventDefault();
                       setShowChangelogModal(true);
                     }}
                     variant="primary"
-                  >v{APP_VERSION}</Link>
+                  >
+                    v{APP_VERSION}
+                  </Link>
                 </SpaceBetween>
                 {lastLoad && (
                   <Box variant="small" color="text-body-secondary">
-                    {t.lastLoad}: {new Date(lastLoad).toLocaleString(language.value === 'tlh_TLH' ? 'fr-FR' : language.value.replace('_', '-'))}
+                    {t.lastLoad}: {new Date(lastLoad).toLocaleString(locale)}
                   </Box>
                 )}
               </SpaceBetween>
@@ -736,7 +591,10 @@ function App() {
               }
             >
               <span
-                onClick={() => { setPendingEventName(eventName); setShowEditNameModal(true); }}
+                onClick={() => {
+                  setPendingEventName(eventName);
+                  setShowEditNameModal(true);
+                }}
                 title={eventName ? `${t.appTitle}: ${eventName}` : undefined}
                 style={{ cursor: 'pointer' }}
               >
@@ -824,7 +682,11 @@ function App() {
                       }}
                       options={statusFilterOptions}
                     />
-                    <Button onClick={() => { if (!addJustSubmittedRef.current) openAddModal(); }}>
+                    <Button
+                      onClick={() => {
+                        if (!addJustSubmittedRef.current) openAddModal();
+                      }}
+                    >
                       {t.addParticipant}
                     </Button>
                   </SpaceBetween>
@@ -838,9 +700,7 @@ function App() {
                 <Pagination
                   currentPageIndex={currentPageIndex}
                   pagesCount={Math.ceil(filteredParticipants.length / pageSize)}
-                  onChange={({ detail }) =>
-                    setCurrentPageIndex(detail.currentPageIndex)
-                  }
+                  onChange={({ detail }) => setCurrentPageIndex(detail.currentPageIndex)}
                 />
               ) : undefined
             }
@@ -869,9 +729,7 @@ function App() {
           />
 
           {chartSeries && (
-            <Container
-              header={<Header variant="h2">{t.chartTitle}</Header>}
-            >
+            <Container header={<Header variant="h2">{t.chartTitle}</Header>}>
               <MixedLineBarChart
                 series={chartSeries}
                 xScaleType="time"
@@ -882,7 +740,6 @@ function App() {
                 i18nStrings={{
                   xTickFormatter: (d) => {
                     if (!(d instanceof Date)) return d;
-                    const locale = language.value === 'tlh_TLH' ? 'fr-FR' : language.value.replace('_', '-');
                     return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
                   },
                   yTickFormatter: (v) => String(v),
@@ -898,7 +755,9 @@ function App() {
           <Modal
             onDismiss={closeParticipantModal}
             visible={!!participantModal}
-            header={participantModal?.mode === 'add' ? t.addParticipantTitle : t.editParticipantTitle}
+            header={
+              participantModal?.mode === 'add' ? t.addParticipantTitle : t.editParticipantTitle
+            }
             footer={
               <Box float="right">
                 <SpaceBetween direction="horizontal" size="xs">
@@ -914,7 +773,14 @@ function App() {
           >
             {participantModal && (
               <Form>
-                <div onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleParticipantSubmit(); } }}>
+                <div
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.stopPropagation();
+                      handleParticipantSubmit();
+                    }
+                  }}
+                >
                   <SpaceBetween size="m">
                     <FormField
                       label={t.firstName}
@@ -925,7 +791,14 @@ function App() {
                         ref={participantFirstNameRef}
                         value={participantModal.data.firstName}
                         onChange={({ detail }) => {
-                          setParticipantModal((m) => ({ ...m, data: { ...m.data, firstName: detail.value }, errors: { ...m.errors, firstName: !detail.value.trim() ? m.errors.firstName : false } }));
+                          setParticipantModal((m) => ({
+                            ...m,
+                            data: { ...m.data, firstName: detail.value },
+                            errors: {
+                              ...m.errors,
+                              firstName: !detail.value.trim() ? m.errors.firstName : false,
+                            },
+                          }));
                         }}
                         placeholder={t.placeholderFirstName}
                         invalid={participantModal.errors.firstName}
@@ -939,7 +812,14 @@ function App() {
                       <Input
                         value={participantModal.data.lastName}
                         onChange={({ detail }) => {
-                          setParticipantModal((m) => ({ ...m, data: { ...m.data, lastName: detail.value }, errors: { ...m.errors, lastName: !detail.value.trim() ? m.errors.lastName : false } }));
+                          setParticipantModal((m) => ({
+                            ...m,
+                            data: { ...m.data, lastName: detail.value },
+                            errors: {
+                              ...m.errors,
+                              lastName: !detail.value.trim() ? m.errors.lastName : false,
+                            },
+                          }));
                         }}
                         placeholder={t.placeholderLastName}
                         invalid={participantModal.errors.lastName}
@@ -949,7 +829,10 @@ function App() {
                       <Input
                         value={participantModal.data.email}
                         onChange={({ detail }) =>
-                          setParticipantModal((m) => ({ ...m, data: { ...m.data, email: detail.value } }))
+                          setParticipantModal((m) => ({
+                            ...m,
+                            data: { ...m.data, email: detail.value },
+                          }))
                         }
                         placeholder={t.placeholderEmail}
                         type="email"
@@ -960,17 +843,25 @@ function App() {
                         <Toggle
                           checked={participantModal.data.checkedIn}
                           onChange={({ detail }) =>
-                            setParticipantModal((m) => ({ ...m, data: { ...m.data, checkedIn: detail.checked } }))
+                            setParticipantModal((m) => ({
+                              ...m,
+                              data: { ...m.data, checkedIn: detail.checked },
+                            }))
                           }
                         >
-                          {participantModal.data.checkedIn ? t.statusCheckedIn : t.statusNotCheckedIn}
+                          {participantModal.data.checkedIn
+                            ? t.statusCheckedIn
+                            : t.statusNotCheckedIn}
                         </Toggle>
                       </FormField>
                       <FormField label={t.absent}>
                         <Toggle
                           checked={participantModal.data.absent ?? false}
                           onChange={({ detail }) =>
-                            setParticipantModal((m) => ({ ...m, data: { ...m.data, absent: detail.checked } }))
+                            setParticipantModal((m) => ({
+                              ...m,
+                              data: { ...m.data, absent: detail.checked },
+                            }))
                           }
                         >
                           {participantModal.data.absent ? t.absent : '–'}
@@ -990,32 +881,44 @@ function App() {
             header="Changelog"
           >
             <Box padding={{ vertical: 's' }}>
-              <ReactMarkdown components={{
-                h3: ({ children }) => {
-                  const text = String(children).toLowerCase();
-                  const [bg, fg] =
-                    text.includes('added')      ? ['#d4edda', '#1a5c2a'] :
-                    text.includes('changed')    ? ['#d0e8ff', '#0a4a8a'] :
-                    text.includes('fixed')      ? ['#fde8d0', '#7a3010'] :
-                    text.includes('removed')    ? ['#fdd', '#8b0000'] :
-                    text.includes('deprecated') ? ['#fff3cd', '#6b4c00'] :
-                    ['#e8e8e8', '#333'];
-                  return (
-                    <div style={{ marginTop: '12px', marginBottom: '4px' }}>
-                      <span style={{
-                        backgroundColor: bg,
-                        color: fg,
-                        borderRadius: '12px',
-                        padding: '2px 10px',
-                        fontSize: '0.8em',
-                        fontWeight: 'bold',
-                        letterSpacing: '0.03em',
-                        textTransform: 'uppercase',
-                      }}>{children}</span>
-                    </div>
-                  );
-                }
-              }}>{changelog}</ReactMarkdown>
+              <ReactMarkdown
+                components={{
+                  h3: ({ children }) => {
+                    const text = String(children).toLowerCase();
+                    const [bg, fg] = text.includes('added')
+                      ? ['#d4edda', '#1a5c2a']
+                      : text.includes('changed')
+                        ? ['#d0e8ff', '#0a4a8a']
+                        : text.includes('fixed')
+                          ? ['#fde8d0', '#7a3010']
+                          : text.includes('removed')
+                            ? ['#fdd', '#8b0000']
+                            : text.includes('deprecated')
+                              ? ['#fff3cd', '#6b4c00']
+                              : ['#e8e8e8', '#333'];
+                    return (
+                      <div style={{ marginTop: '12px', marginBottom: '4px' }}>
+                        <span
+                          style={{
+                            backgroundColor: bg,
+                            color: fg,
+                            borderRadius: '12px',
+                            padding: '2px 10px',
+                            fontSize: '0.8em',
+                            fontWeight: 'bold',
+                            letterSpacing: '0.03em',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {children}
+                        </span>
+                      </div>
+                    );
+                  },
+                }}
+              >
+                {changelog}
+              </ReactMarkdown>
             </Box>
           </Modal>
 
@@ -1037,7 +940,7 @@ function App() {
                       <Button
                         onClick={() => {
                           setConfirmModal({ visible: false, action: null, message: '' });
-                          handleConfirm_action('resetCheckinOnly');
+                          runConfirmedAction('resetCheckinOnly');
                         }}
                       >
                         {t.resetCheckinOnly}
@@ -1046,7 +949,7 @@ function App() {
                         variant="primary"
                         onClick={() => {
                           setConfirmModal({ visible: false, action: null, message: '' });
-                          handleConfirm_action('reset');
+                          runConfirmedAction('reset');
                         }}
                       >
                         {t.resetFull}
@@ -1061,9 +964,17 @@ function App() {
               </Box>
             }
           >
-            {confirmModal.action === 'uncheck' && pendingCheckOut
-              ? <span>{t.confirmCheckOutPrefix}<b>{pendingCheckOut.firstName} {pendingCheckOut.lastName}</b>{t.confirmCheckOutSuffix}</span>
-              : confirmModal.message}
+            {confirmModal.action === 'uncheck' && pendingCheckOut ? (
+              <span>
+                {t.confirmCheckOutPrefix}
+                <b>
+                  {pendingCheckOut.firstName} {pendingCheckOut.lastName}
+                </b>
+                {t.confirmCheckOutSuffix}
+              </span>
+            ) : (
+              confirmModal.message
+            )}
           </Modal>
 
           <Modal

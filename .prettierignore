@@ -1,0 +1,9 @@
+dist
+dev-dist
+coverage
+.vitest
+node_modules
+.claude
+package-lock.json
+# Generated from CHANGELOG.md
+src/changelog.js

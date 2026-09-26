@@ -12,17 +12,22 @@ The application is a Progressive Web App built with `vite-plugin-pwa`. A Workbox
 
 A web app manifest allows installing the application on a phone or desktop and running it in standalone mode.
 
-## Single-file component model
+## Single-component model
 
-All application logic lives in `src/App.jsx`. This is a deliberate choice for a tool of this scope: the component tree is shallow (one main `App` component plus a small `CheckInButton` sub-component), and splitting into multiple files would add navigation overhead without meaningful benefit.
+All UI code lives in `src/App.jsx`. This is a deliberate choice for a tool of this scope: the component tree is shallow (one main `App` component plus a small `CheckInButton` sub-component), and splitting into multiple files would add navigation overhead without meaningful benefit.
 
-The other modules are:
+Logic that does not depend on React is kept in plain modules, so it can be unit tested without rendering the UI:
 
-| File | Content |
-|---|---|
-| `src/main.jsx` | React entry point, loads Cloudscape global styles |
-| `src/translations.js` | All UI strings for all supported languages (English, French, Italian, Spanish, and Klingon), keyed by locale code (`en_US`, `fr_FR`, …) |
-| `src/changelog.js` | Generated file — see below |
+| File                      | Content                                                                                                                                 |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/main.jsx`            | React entry point, loads Cloudscape global styles                                                                                       |
+| `src/App.jsx`             | The whole UI: state, handlers, layout, modals                                                                                           |
+| `src/lib/participants.js` | Pure functions: name normalization, spreadsheet row parsing, filtering, sorting, statistics, chart series, export rows and file name    |
+| `src/lib/storage.js`      | `localStorage` keys and safe read/write helpers (never throw, e.g. in private browsing)                                                 |
+| `src/translations.js`     | All UI strings for all supported languages (English, French, Italian, Spanish, and Klingon), keyed by locale code (`en_US`, `fr_FR`, …) |
+| `src/changelog.js`        | Generated file — see below                                                                                                              |
+
+State is initialized synchronously from `localStorage` (lazy `useState` initializers), so the first render already shows the stored participants and settings; effects only write back.
 
 Modals are managed with a small number of state objects: `participantModal` (shared by add and edit), `confirmModal` (a generic confirmation dialog whose `action` field selects the behaviour: `import`, `reset`, `export`, `uncheck`), plus dedicated states for the event name and changelog modals.
 
@@ -40,9 +45,20 @@ The `CHANGELOG.md` file is the single source of truth for versioning. The script
 
 This means the version in `package.json` and the in-app changelog are always derived from `CHANGELOG.md` — there is no manual version bump step. `src/changelog.js` must never be edited by hand.
 
+## Quality checks
+
+- **ESLint** (`eslint.config.js`, flat config): `@eslint/js` recommended rules, `eslint-plugin-react` and `eslint-plugin-react-hooks` (including the React Compiler rules such as purity and no synchronous `setState` in effects).
+- **Prettier** (`.prettierrc.json`: single quotes, semicolons, 100-character lines, ES5 trailing commas) formats JavaScript, JSON, YAML, HTML and Markdown. `eslint-config-prettier` disables ESLint rules that would conflict with it. Generated files (`src/changelog.js`) and build output are excluded in `.prettierignore`.
+- **Vitest** with **jsdom** and **Testing Library** (`src/test/setup.js` polyfills `matchMedia` and `ResizeObserver` for Cloudscape). Tests live next to the code they cover:
+  - `src/lib/*.test.js` — unit tests of the pure logic and storage helpers
+  - `src/translations.test.js` — every language defines the same keys as `en_US`, with no empty values
+  - `src/App.test.jsx` — integration tests rendering the whole app: check-in / check-out, absent participants, Excel import (files are generated in memory with `xlsx`), manual addition, persistence and reset
+
+Cloudscape keeps every modal in the DOM, including the changelog, whose text may contain sample names. Integration tests therefore locate a dialog by its own content (`dialogWith(text)`) and table cells inside the table body, rather than querying the whole screen.
+
 ## Deployment
 
-A GitHub Actions workflow (`.github/workflows/deploy.yml`) builds the application and deploys `dist/` to GitHub Pages on every push to `main`.
+A GitHub Actions workflow (`.github/workflows/deploy.yml`) runs lint, the formatting check and tests, builds the application and deploys `dist/` to GitHub Pages on every push to `main`. Any failure blocks the deployment.
 
 ## Data flow
 
@@ -70,4 +86,4 @@ Import button click
                                           (check-in progress over time)
 ```
 
-All participant mutations (check-in, check-out, edit, absent flag, manual addition, reset) go through `setParticipants`, which triggers a `useEffect` that persists the new state to `localStorage`. There is no separate save action. Because this effect skips empty lists, a full reset removes the storage key explicitly.
+All participant mutations (check-in, check-out, edit, absent flag, manual addition, reset) go through `setParticipants`, which triggers a `useEffect` that persists the new state to `localStorage`. There is no separate save action. When the list becomes empty, the storage key is removed.

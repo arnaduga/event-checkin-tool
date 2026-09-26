@@ -44,7 +44,7 @@ If someone arrives who is not in the imported list:
 3. Use the **Check-in Automatically** toggle (on by default) to decide whether the participant is immediately marked as checked in.
 4. Press **Enter** or click **Add**.
 
-The participant is added with type *Manual* and appears in the table.
+The participant is added with type _Manual_ and appears in the table.
 
 ## Filter by status
 
